@@ -1,5 +1,7 @@
-android-headers (4.2.2-1-0ubuntu1) UNRELEASED; urgency=low
+android-headers (4.2.2-1-0ubuntu1) trusty; urgency=low
 
-  * Initial release
+  * Initial release.
+    - Split from libhybris, and new package name (following libhybris
+      upstream)
 
- -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Wed, 04 Dec 2013 17:43:02 -0200
+ -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Fri, 13 Dec 2013 07:39:49 -0200
