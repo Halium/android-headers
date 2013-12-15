@@ -11,7 +11,7 @@ Architecture: all
 Multi-Arch: foreign
 Depends: ${misc:Depends}
 Replaces: android-platform-headers
-Breaks: android-platform-headers
+Conflicts: android-platform-headers
 Description: Android Platform Headers from AOSP releases
  Android NDK provided by Google contains subset of AOSP platform
  headers which are deemed "external interface" by Google. However,
