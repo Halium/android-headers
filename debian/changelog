@@ -1,9 +1,9 @@
-android-headers (4.2.2-1-0ubuntu2) UNRELEASED; urgency=low
+android-headers (4.2.2-1-0ubuntu2) trusty; urgency=low
 
   * Changing breaks to conflicts, following policy so the older package is
     removed from the system during upgrades
 
- -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Sun, 15 Dec 2013 20:52:31 -0200
+ -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Sun, 15 Dec 2013 20:54:54 -0200
 
 android-headers (4.2.2-1-0ubuntu1) trusty; urgency=low
 
