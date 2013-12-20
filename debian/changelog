@@ -1,4 +1,4 @@
-android-headers (4.2.2-2-0ubuntu1) UNRELEASED; urgency=low
+android-headers (4.2.2-2-0ubuntu1) trusty; urgency=low
 
   * Syncing hardware/gralloc.h and hardware/hardware.h with AOSP-4.2.2_r1.2
 
