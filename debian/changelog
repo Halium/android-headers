@@ -1,3 +1,9 @@
+android-headers (4.2.2-3-0ubuntu1) UNRELEASED; urgency=medium
+
+  * system/audio.h: added input device for front + back mic
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Thu, 15 May 2014 20:20:12 -0300
+
 android-headers (4.2.2-2-0ubuntu1) trusty; urgency=low
 
   * Syncing hardware/gralloc.h and hardware/hardware.h with AOSP-4.2.2_r1.2
