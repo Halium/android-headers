@@ -1,3 +1,10 @@
+android-headers (4.2.2-4-0ubuntu1) UNRELEASED; urgency=medium
+
+  * system/audio.h: adding more missing streams and devices (available
+    outside AOSP)
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Fri, 16 May 2014 19:27:43 -0300
+
 android-headers (4.2.2-3-0ubuntu1) utopic; urgency=medium
 
   * system/audio.h: added input device for front + back mic
