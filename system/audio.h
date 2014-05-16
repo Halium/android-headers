@@ -46,6 +46,9 @@ typedef enum {
     AUDIO_STREAM_ENFORCED_AUDIBLE = 7, /* Sounds that cannot be muted by user and must be routed to speaker */
     AUDIO_STREAM_DTMF             = 8,
     AUDIO_STREAM_TTS              = 9,
+    AUDIO_STREAM_FM               = 10,
+    AUDIO_STREAM_MATV             = 11,
+    AUDIO_STREAM_BOOT             = 12,
 
     AUDIO_STREAM_CNT,
     AUDIO_STREAM_MAX              = AUDIO_STREAM_CNT - 1,
@@ -67,6 +70,11 @@ typedef enum {
                                           /* An example of remote presentation is Wifi Display */
                                           /*  where a dongle attached to a TV can be used to   */
                                           /*  play the mix captured by this audio source.      */
+    AUDIO_SOURCE_FM_RX               = 9,
+    AUDIO_SOURCE_FM_RX_A2DP          = 10,
+    AUDIO_SOURCE_MATV                = 98,
+    AUDIO_SOURCE_FM                  = 99,
+
     AUDIO_SOURCE_CNT,
     AUDIO_SOURCE_MAX                 = AUDIO_SOURCE_CNT - 1,
 } audio_source_t;
@@ -301,6 +309,12 @@ enum {
     AUDIO_DEVICE_OUT_USB_ACCESSORY             = 0x2000,
     AUDIO_DEVICE_OUT_USB_DEVICE                = 0x4000,
     AUDIO_DEVICE_OUT_REMOTE_SUBMIX             = 0x8000,
+    AUDIO_DEVICE_OUT_ANC_HEADSET               = 0x10000,
+    AUDIO_DEVICE_OUT_ANC_HEADPHONE             = 0x20000,
+    AUDIO_DEVICE_OUT_PROXY                     = 0x40000,
+    AUDIO_DEVICE_OUT_FM                        = 0x80000,
+    AUDIO_DEVICE_OUT_FM_TX                     = 0x100000,
+    AUDIO_DEVICE_OUT_SPDIF                     = 0x200000,
     AUDIO_DEVICE_OUT_DEFAULT                   = AUDIO_DEVICE_BIT_DEFAULT,
     AUDIO_DEVICE_OUT_ALL      = (AUDIO_DEVICE_OUT_EARPIECE |
                                  AUDIO_DEVICE_OUT_SPEAKER |
@@ -318,6 +332,12 @@ enum {
                                  AUDIO_DEVICE_OUT_USB_ACCESSORY |
                                  AUDIO_DEVICE_OUT_USB_DEVICE |
                                  AUDIO_DEVICE_OUT_REMOTE_SUBMIX |
+                                 AUDIO_DEVICE_OUT_ANC_HEADSET |
+                                 AUDIO_DEVICE_OUT_ANC_HEADPHONE |
+                                 AUDIO_DEVICE_OUT_PROXY |
+                                 AUDIO_DEVICE_OUT_FM |
+                                 AUDIO_DEVICE_OUT_FM_TX |
+                                 AUDIO_DEVICE_OUT_SPDIF |
                                  AUDIO_DEVICE_OUT_DEFAULT),
     AUDIO_DEVICE_OUT_ALL_A2DP = (AUDIO_DEVICE_OUT_BLUETOOTH_A2DP |
                                  AUDIO_DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES |
@@ -342,6 +362,13 @@ enum {
     AUDIO_DEVICE_IN_DGTL_DOCK_HEADSET     = AUDIO_DEVICE_BIT_IN | 0x400,
     AUDIO_DEVICE_IN_USB_ACCESSORY         = AUDIO_DEVICE_BIT_IN | 0x800,
     AUDIO_DEVICE_IN_USB_DEVICE            = AUDIO_DEVICE_BIT_IN | 0x1000,
+    AUDIO_DEVICE_IN_ANC_HEADSET           = AUDIO_DEVICE_BIT_IN | 0x2000,
+    AUDIO_DEVICE_IN_PROXY                 = AUDIO_DEVICE_BIT_IN | 0x4000,
+    AUDIO_DEVICE_IN_FM_RX                 = AUDIO_DEVICE_BIT_IN | 0x8000,
+    AUDIO_DEVICE_IN_FM_RX_A2DP            = AUDIO_DEVICE_BIT_IN | 0x10000,
+    AUDIO_DEVICE_IN_FM                    = AUDIO_DEVICE_BIT_IN | 0x1000000,
+    AUDIO_DEVICE_IN_MATV                  = AUDIO_DEVICE_BIT_IN | 0x2000000,
+    AUDIO_DEVICE_IN_AUX_DIGITAL2          = AUDIO_DEVICE_BIT_IN | 0x8000000,
     AUDIO_DEVICE_IN_DEFAULT               = AUDIO_DEVICE_BIT_IN | AUDIO_DEVICE_BIT_DEFAULT,
 
     AUDIO_DEVICE_IN_ALL     = (AUDIO_DEVICE_IN_COMMUNICATION |
@@ -357,6 +384,13 @@ enum {
                                AUDIO_DEVICE_IN_DGTL_DOCK_HEADSET |
                                AUDIO_DEVICE_IN_USB_ACCESSORY |
                                AUDIO_DEVICE_IN_USB_DEVICE |
+                               AUDIO_DEVICE_IN_PROXY |
+                               AUDIO_DEVICE_IN_ANC_HEADSET |
+                               AUDIO_DEVICE_IN_FM_RX |
+                               AUDIO_DEVICE_IN_FM_RX_A2DP |
+                               AUDIO_DEVICE_IN_FM |
+                               AUDIO_DEVICE_IN_MATV |
+                               AUDIO_DEVICE_IN_AUX_DIGITAL2 |
                                AUDIO_DEVICE_IN_DEFAULT),
     AUDIO_DEVICE_IN_ALL_SCO = AUDIO_DEVICE_IN_BLUETOOTH_SCO_HEADSET,
 };
