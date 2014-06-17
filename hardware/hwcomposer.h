@@ -35,18 +35,6 @@ __BEGIN_DECLS
 #define HWC_DEVICE_API_VERSION      HWC_DEVICE_API_VERSION_0_1
 #define HWC_API_VERSION             HWC_DEVICE_API_VERSION
 
-/* Users of this header can define HWC_REMOVE_DEPRECATED_VERSIONS to test that
- * they still work with just the current version declared, before the
- * deprecated versions are actually removed.
- *
- * To find code that still depends on the old versions, set the #define to 1
- * here. Code that explicitly sets it to zero (rather than simply not defining
- * it) will still see the old versions.
- */
-#if !defined(HWC_REMOVE_DEPRECATED_VERSIONS)
-#define HWC_REMOVE_DEPRECATED_VERSIONS 0
-#endif
-
 /*****************************************************************************/
 
 /**
@@ -65,6 +53,13 @@ typedef struct hwc_rect {
     int right;
     int bottom;
 } hwc_rect_t;
+
+typedef struct hwc_frect {
+    float left;
+    float top;
+    float right;
+    float bottom;
+} hwc_frect_t;
 
 typedef struct hwc_region {
     size_t numRects;
@@ -161,8 +156,17 @@ typedef struct hwc_layer_1 {
             int32_t blending;
 
             /* area of the source to consider, the origin is the top-left corner of
-             * the buffer */
-            hwc_rect_t sourceCrop;
+             * the buffer. As of HWC_DEVICE_API_VERSION_1_3, sourceRect uses floats.
+             * If the h/w can't support a non-integer source crop rectangle, it should
+             * punt to OpenGL ES composition.
+             */
+            union {
+                // crop rectangle in integer (pre HWC_DEVICE_API_VERSION_1_3)
+                hwc_rect_t sourceCropi;
+                hwc_rect_t sourceCrop; // just for source compatibility
+                // crop rectangle in floats (as of HWC_DEVICE_API_VERSION_1_3)
+                hwc_frect_t sourceCropf;
+            };
 
             /* where to composite the sourceCrop onto the display. The sourceCrop
              * is scaled using linear filtering to the displayFrame. The origin is the
@@ -214,13 +218,53 @@ typedef struct hwc_layer_1 {
              * responsible for closing it when no longer needed.
              */
             int releaseFenceFd;
+
+            /*
+             * Availability: HWC_DEVICE_API_VERSION_1_2
+             *
+             * Alpha value applied to the whole layer. The effective
+             * value of each pixel is computed as:
+             *
+             *   if (blending == HWC_BLENDING_PREMULT)
+             *      pixel.rgb = pixel.rgb * planeAlpha / 255
+             *   pixel.a = pixel.a * planeAlpha / 255
+             *
+             * Then blending proceeds as usual according to the "blending"
+             * field above.
+             *
+             * NOTE: planeAlpha applies to YUV layers as well:
+             *
+             *   pixel.rgb = yuv_to_rgb(pixel.yuv)
+             *   if (blending == HWC_BLENDING_PREMULT)
+             *      pixel.rgb = pixel.rgb * planeAlpha / 255
+             *   pixel.a = planeAlpha
+             *
+             *
+             * IMPLEMENTATION NOTE:
+             *
+             * If the source image doesn't have an alpha channel, then
+             * the h/w can use the HWC_BLENDING_COVERAGE equations instead of
+             * HWC_BLENDING_PREMULT and simply set the alpha channel to
+             * planeAlpha.
+             *
+             * e.g.:
+             *
+             *   if (blending == HWC_BLENDING_PREMULT)
+             *      blending = HWC_BLENDING_COVERAGE;
+             *   pixel.a = planeAlpha;
+             *
+             */
+            uint8_t planeAlpha;
+
+            /* reserved for future use */
+            uint8_t _pad[3];
         };
     };
 
     /* Allow for expansion w/o breaking binary compatibility.
      * Pad layer to 96 bytes, assuming 32-bit pointers.
      */
-    int32_t reserved[24 - 18];
+    int32_t reserved[24 - 19];
 
 } hwc_layer_1_t;
 
@@ -271,7 +315,8 @@ typedef struct hwc_display_contents_1 {
             hwc_surface_t sur;
         };
 
-        /* Fields only relevant for HWC_DEVICE_VERSION_1_2 and later. */
+        /* These fields are used for virtual displays when the h/w composer
+         * version is at least HWC_DEVICE_VERSION_1_3. */
         struct {
             /* outbuf is the buffer that receives the composed image for
              * virtual displays. Writes to the outbuf must wait until
@@ -279,7 +324,28 @@ typedef struct hwc_display_contents_1 {
              * writes to outbuf are complete should be returned in
              * retireFenceFd.
              *
-             * For physical displays, outbuf will be NULL.
+             * This field is set before prepare(), so properties of the buffer
+             * can be used to decide which layers can be handled by h/w
+             * composer.
+             *
+             * If prepare() sets all layers to FRAMEBUFFER, then GLES
+             * composition will happen directly to the output buffer. In this
+             * case, both outbuf and the FRAMEBUFFER_TARGET layer's buffer will
+             * be the same, and set() has no work to do besides managing fences.
+             *
+             * If the TARGET_FORCE_HWC_FOR_VIRTUAL_DISPLAYS board config
+             * variable is defined (not the default), then this behavior is
+             * changed: if all layers are marked for FRAMEBUFFER, GLES
+             * composition will take place to a scratch framebuffer, and
+             * h/w composer must copy it to the output buffer. This allows the
+             * h/w composer to do format conversion if there are cases where
+             * that is more desirable than doing it in the GLES driver or at the
+             * virtual display consumer.
+             *
+             * If some or all layers are marked OVERLAY, then the framebuffer
+             * and output buffer will be different. As with physical displays,
+             * the framebuffer handle will not change between frames if all
+             * layers are marked for OVERLAY.
              */
             buffer_handle_t outbuf;
 
@@ -397,13 +463,12 @@ typedef struct hwc_composer_device_1 {
      * For HWC 1.0, numDisplays will always be one, and displays[0] will be
      * non-NULL.
      *
-     * For HWC 1.1, numDisplays will always be HWC_NUM_DISPLAY_TYPES. Entries
-     * for unsupported or disabled/disconnected display types will be NULL.
+     * For HWC 1.1, numDisplays will always be HWC_NUM_PHYSICAL_DISPLAY_TYPES.
+     * Entries for unsupported or disabled/disconnected display types will be
+     * NULL.
      *
-     * For HWC 1.2 and later, numDisplays will be HWC_NUM_DISPLAY_TYPES or more.
-     * The extra entries correspond to enabled virtual displays, and will be
-     * non-NULL. In HWC 1.2, support for one virtual display is required, and
-     * no more than one will be used. Future HWC versions might require more.
+     * In HWC 1.3, numDisplays may be up to HWC_NUM_DISPLAY_TYPES. The extra
+     * entries correspond to enabled virtual displays, and will be non-NULL.
      *
      * returns: 0 on success. An negative error code on error. If an error is
      * returned, SurfaceFlinger will assume that none of the layer will be
@@ -431,13 +496,12 @@ typedef struct hwc_composer_device_1 {
      * For HWC 1.0, numDisplays will always be one, and displays[0] will be
      * non-NULL.
      *
-     * For HWC 1.1, numDisplays will always be HWC_NUM_DISPLAY_TYPES. Entries
-     * for unsupported or disabled/disconnected display types will be NULL.
+     * For HWC 1.1, numDisplays will always be HWC_NUM_PHYSICAL_DISPLAY_TYPES.
+     * Entries for unsupported or disabled/disconnected display types will be
+     * NULL.
      *
-     * For HWC 1.2 and later, numDisplays will be HWC_NUM_DISPLAY_TYPES or more.
-     * The extra entries correspond to enabled virtual displays, and will be
-     * non-NULL. In HWC 1.2, support for one virtual display is required, and
-     * no more than one will be used. Future HWC versions might require more.
+     * In HWC 1.3, numDisplays may be up to HWC_NUM_DISPLAY_TYPES. The extra
+     * entries correspond to enabled virtual displays, and will be non-NULL.
      *
      * IMPORTANT NOTE: There is an implicit layer containing opaque black
      * pixels behind all the layers in the list. It is the responsibility of
@@ -577,10 +641,6 @@ static inline int hwc_close_1(hwc_composer_device_1_t* device) {
 }
 
 /*****************************************************************************/
-
-#if !HWC_REMOVE_DEPRECATED_VERSIONS
-#include <hardware/hwcomposer_v0.h>
-#endif
 
 __END_DECLS
 

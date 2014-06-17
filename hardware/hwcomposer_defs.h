@@ -32,12 +32,10 @@ __BEGIN_DECLS
 
 #define HWC_MODULE_API_VERSION_0_1  HARDWARE_MODULE_API_VERSION(0, 1)
 
-#define HWC_DEVICE_API_VERSION_0_1  HARDWARE_DEVICE_API_VERSION_2(0, 1, HWC_HEADER_VERSION)
-#define HWC_DEVICE_API_VERSION_0_2  HARDWARE_DEVICE_API_VERSION_2(0, 2, HWC_HEADER_VERSION)
-#define HWC_DEVICE_API_VERSION_0_3  HARDWARE_DEVICE_API_VERSION_2(0, 3, HWC_HEADER_VERSION)
 #define HWC_DEVICE_API_VERSION_1_0  HARDWARE_DEVICE_API_VERSION_2(1, 0, HWC_HEADER_VERSION)
 #define HWC_DEVICE_API_VERSION_1_1  HARDWARE_DEVICE_API_VERSION_2(1, 1, HWC_HEADER_VERSION)
 #define HWC_DEVICE_API_VERSION_1_2  HARDWARE_DEVICE_API_VERSION_2(1, 2, HWC_HEADER_VERSION)
+#define HWC_DEVICE_API_VERSION_1_3  HARDWARE_DEVICE_API_VERSION_2(1, 3, HWC_HEADER_VERSION)
 
 enum {
     /* hwc_composer_device_t::set failed in EGL */
@@ -132,13 +130,11 @@ enum {
 /* attributes queriable with query() */
 enum {
     /*
-     * Availability: HWC_DEVICE_API_VERSION_0_2
      * Must return 1 if the background layer is supported, 0 otherwise.
      */
     HWC_BACKGROUND_LAYER_SUPPORTED      = 0,
 
     /*
-     * Availability: HWC_DEVICE_API_VERSION_0_3
      * Returns the vsync period in nanoseconds.
      *
      * This query is not used for HWC_DEVICE_API_VERSION_1_1 and later.
@@ -179,20 +175,23 @@ enum {
 
 /* Allowed events for hwc_methods::eventControl() */
 enum {
-    HWC_EVENT_VSYNC     = 0,
-    HWC_EVENT_ORIENTATION    // To notify HWC about the device orientation
+    HWC_EVENT_VSYNC     = 0
 };
 
 /* Display types and associated mask bits. */
 enum {
     HWC_DISPLAY_PRIMARY     = 0,
     HWC_DISPLAY_EXTERNAL    = 1,    // HDMI, DP, etc.
-    HWC_NUM_DISPLAY_TYPES
+    HWC_DISPLAY_VIRTUAL     = 2,
+
+    HWC_NUM_PHYSICAL_DISPLAY_TYPES = 2,
+    HWC_NUM_DISPLAY_TYPES          = 3,
 };
 
 enum {
     HWC_DISPLAY_PRIMARY_BIT     = 1 << HWC_DISPLAY_PRIMARY,
     HWC_DISPLAY_EXTERNAL_BIT    = 1 << HWC_DISPLAY_EXTERNAL,
+    HWC_DISPLAY_VIRTUAL_BIT     = 1 << HWC_DISPLAY_VIRTUAL,
 };
 
 /*****************************************************************************/

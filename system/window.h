@@ -27,10 +27,6 @@
 #include <system/graphics.h>
 #include <unistd.h>
 
-#ifdef __cplusplus
-#include <string.h>
-#endif
-
 __BEGIN_DECLS
 
 /*****************************************************************************/
@@ -234,7 +230,13 @@ enum {
      * Boolean that indicates whether the consumer is running more than
      * one buffer behind the producer.
      */
-    NATIVE_WINDOW_CONSUMER_RUNNING_BEHIND = 9
+    NATIVE_WINDOW_CONSUMER_RUNNING_BEHIND = 9,
+
+    /*
+     * The consumer gralloc usage bits currently set by the consumer.
+     * The values are defined in hardware/libhardware/include/gralloc.h.
+     */
+    NATIVE_WINDOW_CONSUMER_USAGE_BITS = 10
 };
 
 /* Valid operations for the (*perform)() hook.
@@ -265,10 +267,6 @@ enum {
     NATIVE_WINDOW_API_DISCONNECT            = 14,   /* private */
     NATIVE_WINDOW_SET_BUFFERS_USER_DIMENSIONS = 15, /* private */
     NATIVE_WINDOW_SET_POST_TRANSFORM_CROP   = 16,   /* private */
-    NATIVE_WINDOW_SET_BUFFERS_SIZE          = 17,   /* private */
-#ifdef QCOM_BSP
-    NATIVE_WINDOW_UPDATE_BUFFERS_GEOMETRY   = 18,   /* private */
-#endif
 };
 
 /* parameter for NATIVE_WINDOW_[API_][DIS]CONNECT */
@@ -298,12 +296,15 @@ enum {
     NATIVE_WINDOW_TRANSFORM_FLIP_H = HAL_TRANSFORM_FLIP_H ,
     /* flip source image vertically */
     NATIVE_WINDOW_TRANSFORM_FLIP_V = HAL_TRANSFORM_FLIP_V,
-    /* rotate source image 90 degrees clock-wise */
+    /* rotate source image 90 degrees clock-wise, and is applied after TRANSFORM_FLIP_{H|V} */
     NATIVE_WINDOW_TRANSFORM_ROT_90 = HAL_TRANSFORM_ROT_90,
     /* rotate source image 180 degrees */
     NATIVE_WINDOW_TRANSFORM_ROT_180 = HAL_TRANSFORM_ROT_180,
     /* rotate source image 270 degrees clock-wise */
     NATIVE_WINDOW_TRANSFORM_ROT_270 = HAL_TRANSFORM_ROT_270,
+    /* transforms source by the inverse transform of the screen it is displayed onto. This
+     * transform is applied last */
+    NATIVE_WINDOW_TRANSFORM_INVERSE_DISPLAY = 0x08
 };
 
 /* parameter for NATIVE_WINDOW_SET_SCALING_MODE */
@@ -329,7 +330,6 @@ enum {
 enum {
     NATIVE_WINDOW_FRAMEBUFFER               = 0, /* FramebufferNativeWindow */
     NATIVE_WINDOW_SURFACE                   = 1, /* Surface */
-    NATIVE_WINDOW_SURFACE_TEXTURE_CLIENT    = 2, /* SurfaceTextureClient */
 };
 
 /* parameter for NATIVE_WINDOW_SET_BUFFERS_TIMESTAMP

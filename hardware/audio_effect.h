@@ -61,8 +61,9 @@ typedef struct effect_uuid_s {
 #define EFFECT_UUID_INITIALIZER { 0xec7178ec, 0xe5e1, 0x4432, 0xa3f4, \
                                   { 0x46, 0x57, 0xe6, 0x79, 0x52, 0x10 } }
 static const effect_uuid_t EFFECT_UUID_NULL_ = EFFECT_UUID_INITIALIZER;
-const effect_uuid_t * const EFFECT_UUID_NULL = &EFFECT_UUID_NULL_;
-const char * const EFFECT_UUID_NULL_STR = "ec7178ec-e5e1-4432-a3f4-4657e6795210";
+static const effect_uuid_t * const EFFECT_UUID_NULL = &EFFECT_UUID_NULL_;
+static const char * const EFFECT_UUID_NULL_STR = "ec7178ec-e5e1-4432-a3f4-4657e6795210";
+
 
 // The effect descriptor contains necessary information to facilitate the enumeration of the effect
 // engines present in a library.
@@ -146,6 +147,9 @@ typedef struct effect_descriptor_s {
 //  |                           |           | 1 requires audio source updates
 //  |                           |           | 2..3 reserved
 //  +---------------------------+-----------+-----------------------------------
+//  | Effect offload supported  | 22        | 0 The effect cannot be offloaded to an audio DSP
+//  |                           |           | 1 The effect can be offloaded to an audio DSP
+//  +---------------------------+-----------+-----------------------------------
 
 // Insert mode
 #define EFFECT_FLAG_TYPE_SHIFT          0
@@ -227,6 +231,14 @@ typedef struct effect_descriptor_s {
                                           << EFFECT_FLAG_AUDIO_SOURCE_SHIFT)
 #define EFFECT_FLAG_AUDIO_SOURCE_IND    (1 << EFFECT_FLAG_AUDIO_SOURCE_SHIFT)
 #define EFFECT_FLAG_AUDIO_SOURCE_NONE   (0 << EFFECT_FLAG_AUDIO_SOURCE_SHIFT)
+
+// Effect offload indication
+#define EFFECT_FLAG_OFFLOAD_SHIFT       (EFFECT_FLAG_AUDIO_SOURCE_SHIFT + \
+                                                    EFFECT_FLAG_AUDIO_SOURCE_SIZE)
+#define EFFECT_FLAG_OFFLOAD_SIZE        1
+#define EFFECT_FLAG_OFFLOAD_MASK        (((1 << EFFECT_FLAG_OFFLOAD_SIZE) -1) \
+                                          << EFFECT_FLAG_OFFLOAD_SHIFT)
+#define EFFECT_FLAG_OFFLOAD_SUPPORTED   (1 << EFFECT_FLAG_OFFLOAD_SHIFT)
 
 #define EFFECT_MAKE_API_VERSION(M, m)  (((M)<<16) | ((m) & 0xFFFF))
 #define EFFECT_API_VERSION_MAJOR(v)    ((v)>>16)
@@ -425,6 +437,8 @@ enum effect_command_e {
    EFFECT_CMD_GET_FEATURE_CONFIG,   // get current feature configuration
    EFFECT_CMD_SET_FEATURE_CONFIG,   // set current feature configuration
    EFFECT_CMD_SET_AUDIO_SOURCE,     // set the audio source (see audio.h, audio_source_t)
+   EFFECT_CMD_OFFLOAD,              // set if effect thread is an offload one,
+                                    // send the ioHandle of the effect thread
    EFFECT_CMD_FIRST_PROPRIETARY = 0x10000 // first proprietary command code
 };
 
@@ -731,6 +745,20 @@ enum effect_command_e {
 //  size: 0
 //  data: N/A
 //==================================================================================================
+// command: EFFECT_CMD_OFFLOAD
+//--------------------------------------------------------------------------------------------------
+// description:
+//  1.indicate if the playback thread the effect is attached to is offloaded or not
+//  2.update the io handle of the playback thread the effect is attached to
+//--------------------------------------------------------------------------------------------------
+// command format:
+//  size: sizeof(effect_offload_param_t)
+//  data: effect_offload_param_t
+//--------------------------------------------------------------------------------------------------
+// reply format:
+//  size: sizeof(uint32_t)
+//  data: uint32_t
+//--------------------------------------------------------------------------------------------------
 // command: EFFECT_CMD_FIRST_PROPRIETARY
 //--------------------------------------------------------------------------------------------------
 // description:
@@ -867,14 +895,21 @@ typedef struct effect_param_s {
     char        data[];     // Start of Parameter + Value data
 } effect_param_t;
 
+// structure used by EFFECT_CMD_OFFLOAD command
+typedef struct effect_offload_param_s {
+    bool isOffload;         // true if the playback thread the effect is attached to is offloaded
+    int ioHandle;           // io handle of the playback thread the effect is attached to
+} effect_offload_param_t;
 
 
 /////////////////////////////////////////////////
 //      Effect library interface
 /////////////////////////////////////////////////
 
-// Effect library interface version 2.0
-#define EFFECT_LIBRARY_API_VERSION EFFECT_MAKE_API_VERSION(2,0)
+// Effect library interface version 3.0
+// Note that EffectsFactory.c only checks the major version component, so changes to the minor
+// number can only be used for fully backwards compatible changes
+#define EFFECT_LIBRARY_API_VERSION EFFECT_MAKE_API_VERSION(3,0)
 
 #define AUDIO_EFFECT_LIBRARY_TAG ((('A') << 24) | (('E') << 16) | (('L') << 8) | ('T'))
 
@@ -890,57 +925,6 @@ typedef struct audio_effect_library_s {
     const char *name;
     // Author/owner/implementor of the library
     const char *implementor;
-
-    ////////////////////////////////////////////////////////////////////////////////
-    //
-    //    Function:        query_num_effects
-    //
-    //    Description:    Returns the number of different effects exposed by the
-    //          library. Each effect must have a unique effect uuid (see
-    //          effect_descriptor_t). This function together with EffectQueryEffect()
-    //          is used to enumerate all effects present in the library.
-    //
-    //    Input/Output:
-    //          pNumEffects:    address where the number of effects should be returned.
-    //
-    //    Output:
-    //        returned value:    0          successful operation.
-    //                          -ENODEV     library failed to initialize
-    //                          -EINVAL     invalid pNumEffects
-    //        *pNumEffects:     updated with number of effects in library
-    //
-    ////////////////////////////////////////////////////////////////////////////////
-    int32_t (*query_num_effects)(uint32_t *pNumEffects);
-
-    ////////////////////////////////////////////////////////////////////////////////
-    //
-    //    Function:        query_effect
-    //
-    //    Description:    Returns the descriptor of the effect engine which index is
-    //          given as argument.
-    //          See effect_descriptor_t for details on effect descriptors.
-    //          This function together with EffectQueryNumberEffects() is used to enumerate all
-    //          effects present in the library. The enumeration sequence is:
-    //              EffectQueryNumberEffects(&num_effects);
-    //              for (i = 0; i < num_effects; i++)
-    //                  EffectQueryEffect(i,...);
-    //
-    //    Input/Output:
-    //          index:          index of the effect
-    //          pDescriptor:    address where to return the effect descriptor.
-    //
-    //    Output:
-    //        returned value:    0          successful operation.
-    //                          -ENODEV     library failed to initialize
-    //                          -EINVAL     invalid pDescriptor or index
-    //                          -ENOSYS     effect list has changed since last execution of
-    //                                      EffectQueryNumberEffects()
-    //                          -ENOENT     no more effect available
-    //        *pDescriptor:     updated with the effect descriptor.
-    //
-    ////////////////////////////////////////////////////////////////////////////////
-    int32_t (*query_effect)(uint32_t index,
-                            effect_descriptor_t *pDescriptor);
 
     ////////////////////////////////////////////////////////////////////////////////
     //
