@@ -1,3 +1,11 @@
+android-headers (4.2.2-5-0ubuntu2) utopic; urgency=medium
+
+  * debian/patches/android_alarm_use_right_include_kernel_userspace.patch:
+    - Use the right time.h header when this gets included by userspace
+      code
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Wed, 21 May 2014 11:13:16 -0300
+
 android-headers (4.2.2-5-0ubuntu1) utopic; urgency=medium
 
   * Adding linux/android_alarm.h
