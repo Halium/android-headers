@@ -21,4 +21,4 @@ Description: Android Platform Headers from AOSP releases
  different releases is required (e.g. for libhybris).
  .
  This package provides the platform development headers for core components
- of AOSP (Android Open Source Project), for the 4.2.2 release
+ of AOSP (Android Open Source Project), for the 4.4.2 release
