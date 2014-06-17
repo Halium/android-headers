@@ -1,7 +1,7 @@
-android-headers (4.4.2-1-0ubuntu1) UNRELEASED; urgency=medium
+android-headers (4.4.2-1-0ubuntu1) utopic; urgency=medium
 
   * New upstream release
-  * Bumping standards-version to 3.9.5 
+  * Bumping standards-version to 3.9.5
 
  -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Tue, 17 Jun 2014 19:18:40 -0300
 
