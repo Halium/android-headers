@@ -1,4 +1,4 @@
-android-headers (4.4.2-1-0ubuntu2) UNRELEASED; urgency=medium
+android-headers (4.4.2-1-0ubuntu2) utopic; urgency=medium
 
   * graphics_h_include_missing_stddef_h.patch:
     - Include missing stddef.h to avoid issues with size_t (LP: #1331435)
