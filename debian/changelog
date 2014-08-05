@@ -1,4 +1,4 @@
-android-headers (4.4.2-1-0ubuntu3) UNRELEASED; urgency=medium
+android-headers (4.4.2-2-0ubuntu1) utopic; urgency=medium
 
   * Adding wifi.h from hardware legacy
 
