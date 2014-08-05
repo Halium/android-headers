@@ -91,6 +91,7 @@ cp $ANDROID_ROOT/hardware/libhardware/include/hardware/* $HEADERPATH/hardware/
 
 mkdir -p $HEADERPATH/hardware_legacy/
 cp $ANDROID_ROOT/hardware/libhardware_legacy/include/hardware_legacy/audio_policy_conf.h $HEADERPATH/hardware_legacy/
+cp $ANDROID_ROOT/hardware/libhardware_legacy/include/hardware_legacy/wifi.h $HEADERPATH/hardware_legacy/
 
 mkdir -p $HEADERPATH/cutils/
 cp $ANDROID_ROOT/system/core/include/cutils/* $HEADERPATH/cutils/

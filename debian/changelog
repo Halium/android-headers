@@ -1,3 +1,9 @@
+android-headers (4.4.2-1-0ubuntu3) UNRELEASED; urgency=medium
+
+  * Adding wifi.h from hardware legacy
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Tue, 05 Aug 2014 14:00:05 -0300
+
 android-headers (4.4.2-1-0ubuntu2) utopic; urgency=medium
 
   * graphics_h_include_missing_stddef_h.patch:
