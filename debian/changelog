@@ -1,3 +1,11 @@
+android-headers (4.4.2-2-0ubuntu2) UNRELEASED; urgency=medium
+
+  * debian/patch/avoid_include_system_properties.patch:
+    - sys/system_properties.h is only useful on Android, and part of
+      bionic, so make sure we're not including it by default
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Thu, 14 Aug 2014 01:08:04 -0300
+
 android-headers (4.4.2-2-0ubuntu1) utopic; urgency=medium
 
   * Adding wifi.h from hardware legacy
