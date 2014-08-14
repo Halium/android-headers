@@ -1,4 +1,4 @@
-android-headers (4.4.2-2-0ubuntu2) UNRELEASED; urgency=medium
+android-headers (4.4.2-2-0ubuntu2) utopic; urgency=medium
 
   * debian/patch/avoid_include_system_properties.patch:
     - sys/system_properties.h is only useful on Android, and part of
