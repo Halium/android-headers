@@ -2,3 +2,4 @@
 android_alarm_use_right_include_kernel_userspace.patch
 graphics_h_include_missing_stddef_h.patch
 avoid_include_system_properties.patch
+wifi_compat_check_avail.patch
