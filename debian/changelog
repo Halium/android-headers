@@ -1,3 +1,11 @@
+android-headers (4.4.2-2-0ubuntu3) UNRELEASED; urgency=medium
+
+  * debian/patches/wifi_compat_check_avail.patch: add declaration for new
+    method to check that the wifi compat HAL layer is available:
+    wifi_compat_check_availability().
+
+ -- Mathieu Trudel-Lapierre <mathieu-tl@ubuntu.com>  Mon, 08 Dec 2014 11:00:22 -0500
+
 android-headers (4.4.2-2-0ubuntu2) utopic; urgency=medium
 
   * debian/patch/avoid_include_system_properties.patch:
