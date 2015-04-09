@@ -1,3 +1,10 @@
+android-headers (4.4.2-2-0ubuntu4) UNRELEASED; urgency=medium
+
+  * debian/patches/updating_hwcomposer_android5.patch:
+    - Updating hwcomposer headers so we can use hwcomposer 1.4
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@canonical.com>  Thu, 09 Apr 2015 17:07:32 -0300
+
 android-headers (4.4.2-2-0ubuntu3) vivid; urgency=medium
 
   * debian/patches/wifi_compat_check_avail.patch: add declaration for new
