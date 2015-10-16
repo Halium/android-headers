@@ -1,3 +1,11 @@
+android-headers (4.4.2-2-0ubuntu5) vivid; urgency=medium
+
+  [ Yuan-Chen Cheng ]
+  * add android-config.h and vibrator.h required by new libhybris
+  * catch up extract-headers.sh (not in released file list)
+
+ -- Simon Fels <simon.fels@canonical.com>  Fri, 16 Oct 2015 09:18:09 +0200
+
 android-headers (4.4.2-2-0ubuntu4) vivid; urgency=medium
 
   * debian/patches/updating_hwcomposer_android5.patch:
