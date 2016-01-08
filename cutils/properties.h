@@ -19,7 +19,9 @@
 
 #include <sys/cdefs.h>
 #include <stddef.h>
-#include <sys/system_properties.h>
+
+#define PROP_NAME_MAX   32
+#define PROP_VALUE_MAX  92
 
 #ifdef __cplusplus
 extern "C" {
