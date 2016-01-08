@@ -22,6 +22,13 @@ extern "C" {
 #endif
 
 /**
+ * Check that the wifi HAL layer is available for use.
+ *
+ * @return 1 if the HAL layer is available, 0 otherwise.
+ */
+int wifi_compat_check_availability();
+
+/**
  * Load the Wi-Fi driver.
  *
  * @return 0 on success, < 0 on failure.
