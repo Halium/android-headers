@@ -12,7 +12,11 @@
 #define _LINUX_ANDROID_ALARM_H
 
 #include <asm/ioctl.h>
+#if defined(__KERNEL__)
 #include <linux/time.h>
+#else
+#include <time.h>
+#endif
 
 typedef enum {
 	// return code bit numbers or set alarm arg
