@@ -3,8 +3,8 @@ Priority: extra
 Section: libdevel
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 Build-Depends: debhelper (>= 9), quilt
-Standards-Version: 3.9.5
-Vcs-Bzr: lp:~ubuntu-core-dev/libhybris/android-headers
+Standards-Version: 3.9.6
+Vcs-Bzr: lp:android-headers
 
 Package: android-headers
 Architecture: all
