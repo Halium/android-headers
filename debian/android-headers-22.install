@@ -1,2 +1,2 @@
 debian/android-headers-22.pc usr/lib/pkgconfig/
-22/ usr/include/android-22/
+22/* usr/include/android-22/
