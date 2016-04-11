@@ -1,4 +1,4 @@
-android-headers (23-0ubuntu3) UNRELEASED; urgency=medium
+android-headers (23-0ubuntu3) xenial; urgency=medium
 
   * debian/android-headers.{preinst,postinst,postrm}: Use
     dpkg-maintscript-helper to switch /usr/include/android to a symlink.
