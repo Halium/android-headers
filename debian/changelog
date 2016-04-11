@@ -1,3 +1,14 @@
+android-headers (23-0ubuntu3) UNRELEASED; urgency=medium
+
+  * debian/android-headers.{preinst,postinst,postrm}: Use
+    dpkg-maintscript-helper to switch /usr/include/android to a symlink.
+    (LP: #1539338)
+  * debian/control: add appropriate Pre-Depends on dpkg for mainscript
+    helper.
+  * debian/control: fix link to vcs
+
+ -- Simon Fels <simon.fels@canonical.com>  Mon, 11 Apr 2016 11:02:08 +0200
+
 android-headers (23-0ubuntu2) xenial; urgency=medium
 
   * Patch 21-23 to fix ABI problems when we mix softfp and hardfp
