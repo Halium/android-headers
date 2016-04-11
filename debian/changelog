@@ -1,4 +1,12 @@
-android-headers (23-0ubuntu1) vivid; urgency=medium
+android-headers (23-0ubuntu2) UNRELEASED; urgency=medium
+
+  * Patch 21-23 to fix ABI problems when we mix softfp and hardfp
+    binaries (LP: #1548954). This was discovered while fixing a
+    problem with the Android Audio HAL API.
+
+ -- Simon Fels <simon.fels@canonical.com>  Mon, 11 Apr 2016 09:38:58 +0200
+
+android-headers (23-0ubuntu1) xenial; urgency=medium
 
   * New upstream release which now includes multiple sets of header files
     divided by the Android API levels we care about.
