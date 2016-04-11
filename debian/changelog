@@ -1,4 +1,4 @@
-android-headers (23-0ubuntu1) UNRELEASED; urgency=medium
+android-headers (23-0ubuntu1) vivid; urgency=medium
 
   * New upstream release which now includes multiple sets of header files
     divided by the Android API levels we care about.
