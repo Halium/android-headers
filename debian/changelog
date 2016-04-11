@@ -1,3 +1,16 @@
+android-headers (23-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream release which now includes multiple sets of header files
+    divided by the Android API levels we care about.
+  * All header sets are now installed in their corresponding debian package
+    android-headers-<API level>. The former android-headers package is now
+    a transitional one depending on android-headers-19 and installing proper
+    symlinks to allow all current users to still build without any changes.
+  * Install proper pkgconfig configuration files for all header sets so that
+    users can now select which of those to use a build time.
+
+ -- Simon Fels <simon.fels@canonical.com>  Mon, 11 Jan 2016 08:50:59 +0100
+
 android-headers (4.4.2-2-0ubuntu5) vivid; urgency=medium
 
   [ Yuan-Chen Cheng ]
