@@ -11,6 +11,7 @@ Architecture: all
 Multi-Arch: foreign
 Depends: android-headers-19,
          ${misc:Depends}
+Pre-Depends: dpkg (>= 1.17.14)
 Replaces: android-platform-headers
 Conflicts: android-platform-headers
 Description: Android Platform Headers from AOSP releases
