@@ -1,3 +1,10 @@
+android-headers (23-0ubuntu4) yakkety; urgency=medium
+
+  [ You-Sheng Yang ]
+  * android-19: hardware: align struct size on arm64
+
+ -- Simon Fels <simon.fels@canonical.com>  Tue, 16 Aug 2016 09:23:00 +0200
+
 android-headers (23-0ubuntu3) xenial; urgency=medium
 
   * debian/android-headers.{preinst,postinst,postrm}: Use
