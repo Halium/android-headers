@@ -1,0 +1,9 @@
+Name: Android header files
+Description: Header files needed to write applications for the Android platform
+Version: 5.1.1
+
+prefix=/usr
+exec_prefix=${prefix}
+includedir=${prefix}/include
+
+Cflags: -I${includedir}/android
