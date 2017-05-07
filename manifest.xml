@@ -81,6 +81,8 @@
   <project path="external/libnl" name="aosp/platform/external/libnl" groups="pdk" />
   <project path="external/libogg" name="aosp/platform/external/libogg" groups="pdk" />
   <project path="external/libopus" name="aosp/platform/external/libopus" groups="pdk" />
+  <project path="external/libnfc-nci" name="platform/external/libnfc-nci" groups="pdk" remote="aosp" />
+  <project path="external/libnfc-nxp" name="platform/external/libnfc-nxp" groups="pdk" remote="aosp" />
   <project path="external/libpng" name="ubports/android_external_libpng" groups="pdk" remote="ubp" />
   <project path="external/libselinux" name="android_external_libselinux" remote="cm" />
   <project path="external/libsepol" name="android_external_libsepol" groups="pdk" remote="cm" />
