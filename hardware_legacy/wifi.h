@@ -37,7 +37,8 @@ int wifi_unload_driver();
 
 /**
  * Check if the Wi-Fi driver is loaded.
- *
+ * Check if the Wi-Fi driver is loaded.
+
  * @return 0 on success, < 0 on failure.
  */
 int is_wifi_driver_loaded();
@@ -153,6 +154,11 @@ int wifi_set_mode(int mode);
  */
 #define WIFI_ENTROPY_FILE	"/data/misc/wifi/entropy.bin"
 int ensure_entropy_file_exists();
+
+/**
+* Check and create if necessary the desired configuration file
+*/
+int ensure_config_file_exists(const char *config_file, const char *config_file_template);
 
 #if __cplusplus
 };  // extern "C"

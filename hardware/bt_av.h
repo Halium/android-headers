@@ -1,4 +1,7 @@
 /*
+ * Copyright (C) 2013-2014, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ *
  * Copyright (C) 2012 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,6 +50,11 @@ typedef void (* btav_connection_state_callback)(btav_connection_state_t state,
 typedef void (* btav_audio_state_callback)(btav_audio_state_t state,
                                                bt_bdaddr_t *bd_addr);
 
+/** Callback for connection priority of device for incoming connection
+ * btav_connection_priority_t
+ */
+typedef void (* btav_connection_priority_callback)(bt_bdaddr_t *bd_addr);
+
 /** Callback for audio configuration change.
  *  Used only for the A2DP sink interface.
  *  state will have one of the values from btav_audio_state_t
@@ -56,16 +64,16 @@ typedef void (* btav_audio_state_callback)(btav_audio_state_t state,
 typedef void (* btav_audio_config_callback)(bt_bdaddr_t *bd_addr,
                                                 uint32_t sample_rate,
                                                 uint8_t channel_count);
-/** Callback for connection priority of device for incoming connection
- * btav_connection_priority_t
- */
-typedef void (* btav_connection_priority_callback)(bt_bdaddr_t *bd_addr);
 
-/** Callback for requesting audio focus.
- *  enable will be either TRUE or FALSE
+/** Callback for updating apps for A2dp multicast state.
  */
-typedef void (* btav_audio_focus_request_callback)(int enable,
-                                                bt_bdaddr_t *bd_addr);
+
+typedef void (* btav_is_multicast_enabled_callback)(int state);
+
+/** Callback to notify reconfig a2dp when A2dp Soft Handoff is triggered
+*/
+typedef void(* btav_reconfig_a2dp_trigger_callback)(int reason, bt_bdaddr_t *bd_addr);
+
 /** BT-AV callback structure. */
 typedef struct {
     /** set to sizeof(btav_callbacks_t) */
@@ -74,7 +82,8 @@ typedef struct {
     btav_audio_state_callback audio_state_cb;
     btav_audio_config_callback audio_config_cb;
     btav_connection_priority_callback connection_priority_cb;
-    btav_audio_focus_request_callback audio_focus_request_cb;
+    btav_is_multicast_enabled_callback multicast_state_cb;
+    btav_reconfig_a2dp_trigger_callback reconfig_a2dp_trigger_cb;
 } btav_callbacks_t;
 
 /**
@@ -97,7 +106,8 @@ typedef struct {
     /**
      * Register the BtAv callbacks
      */
-    bt_status_t (*init)( btav_callbacks_t* callbacks );
+    bt_status_t (*init)( btav_callbacks_t* callbacks , int max_a2dp_connections,
+                        int a2dp_multicast_state, const char *offload_cap);
 
     /** connect to headset */
     bt_status_t (*connect)( bt_bdaddr_t *bd_addr );
@@ -107,38 +117,16 @@ typedef struct {
 
     /** Closes the interface. */
     void  (*cleanup)( void );
+
+    /** Sends Audio Focus State. */
+    void  (*set_audio_focus_state)( int focus_state );
+
+    /** Sets the audio track gain. */
+    void  (*set_audio_track_gain)( float gain );
 
     /** Send priority of device to stack*/
-    void (*allow_connection)( int is_valid );
+    void (*allow_connection)( int is_valid , bt_bdaddr_t *bd_addr);
 } btav_interface_t;
-
-typedef struct {
-
-    /** set to sizeof(btav_interface_t) */
-    size_t          size;
-    /**
-     * Register the BtAv callbacks
-     */
-    bt_status_t (*init)( btav_callbacks_t* callbacks );
-
-    /** connect to headset */
-    bt_status_t (*connect)( bt_bdaddr_t *bd_addr );
-
-    /** dis-connect from headset */
-    bt_status_t (*disconnect)( bt_bdaddr_t *bd_addr );
-
-    /** Closes the interface. */
-    void  (*cleanup)( void );
-
-    /* suspend stream for A2DP Sink */
-    void (*suspend_sink)( void );
-
-    /* resume stream for A2DP Sink */
-    void (*resume_sink)( void );
-
-    /* inform audio focus state */
-    void (*audio_focus_status)( int is_enable );
-} btav_sink_interface_t;
 
 __END_DECLS
 

@@ -20,6 +20,7 @@
 
 #include <stdint.h>
 #include "bt_gatt_types.h"
+#include "bt_common_types.h"
 
 __BEGIN_DECLS
 
@@ -39,9 +40,7 @@ typedef struct
 /** Parameters for GATT read operations */
 typedef struct
 {
-    btgatt_srvc_id_t    srvc_id;
-    btgatt_gatt_id_t    char_id;
-    btgatt_gatt_id_t    descr_id;
+    uint16_t           handle;
     btgatt_unformatted_value_t value;
     uint16_t            value_type;
     uint8_t             status;
@@ -61,11 +60,27 @@ typedef struct
 {
     uint8_t             value[BTGATT_MAX_ATTR_LEN];
     bt_bdaddr_t         bda;
-    btgatt_srvc_id_t    srvc_id;
-    btgatt_gatt_id_t    char_id;
+    uint16_t            handle;
     uint16_t            len;
     uint8_t             is_notify;
 } btgatt_notify_params_t;
+
+typedef struct
+{
+    uint8_t  client_if;
+    uint8_t  action;
+    uint8_t  filt_index;
+    uint16_t feat_seln;
+    uint16_t list_logic_type;
+    uint8_t  filt_logic_type;
+    uint8_t  rssi_high_thres;
+    uint8_t  rssi_low_thres;
+    uint8_t  dely_mode;
+    uint16_t found_timeout;
+    uint16_t lost_timeout;
+    uint8_t  found_timeout_cnt;
+    uint16_t  num_of_tracking_entries;
+} btgatt_filt_param_setup_t;
 
 typedef struct
 {
@@ -77,6 +92,25 @@ typedef struct
     uint16_t            u4;
     uint16_t            u5;
 } btgatt_test_params_t;
+
+/* BT GATT client error codes */
+typedef enum
+{
+    BT_GATTC_COMMAND_SUCCESS = 0,    /* 0  Command succeeded                 */
+    BT_GATTC_COMMAND_STARTED,        /* 1  Command started OK.               */
+    BT_GATTC_COMMAND_BUSY,           /* 2  Device busy with another command  */
+    BT_GATTC_COMMAND_STORED,         /* 3 request is stored in control block */
+    BT_GATTC_NO_RESOURCES,           /* 4  No resources to issue command     */
+    BT_GATTC_MODE_UNSUPPORTED,       /* 5  Request for 1 or more unsupported modes */
+    BT_GATTC_ILLEGAL_VALUE,          /* 6  Illegal command /parameter value  */
+    BT_GATTC_INCORRECT_STATE,        /* 7  Device in wrong state for request  */
+    BT_GATTC_UNKNOWN_ADDR,           /* 8  Unknown remote BD address         */
+    BT_GATTC_DEVICE_TIMEOUT,         /* 9  Device timeout                    */
+    BT_GATTC_INVALID_CONTROLLER_OUTPUT,/* 10  An incorrect value was received from HCI */
+    BT_GATTC_SECURITY_ERROR,          /* 11 Authorization or security failure or not authorized  */
+    BT_GATTC_DELAYED_ENCRYPTION_CHECK, /*12 Delayed encryption check */
+    BT_GATTC_ERR_PROCESSING           /* 12 Generic error                     */
+} btgattc_error_t;
 
 /** BT-GATT Client callback structure. */
 
@@ -100,27 +134,9 @@ typedef void (*disconnect_callback)(int conn_id, int status,
  */
 typedef void (*search_complete_callback)(int conn_id, int status);
 
-/** Reports GATT services on a remote device */
-typedef void (*search_result_callback)( int conn_id, btgatt_srvc_id_t *srvc_id);
-
-/** GATT characteristic enumeration result callback */
-typedef void (*get_characteristic_callback)(int conn_id, int status,
-                btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *char_id,
-                int char_prop);
-
-/** GATT descriptor enumeration result callback */
-typedef void (*get_descriptor_callback)(int conn_id, int status,
-                btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *char_id,
-                btgatt_gatt_id_t *descr_id);
-
-/** GATT included service enumeration result callback */
-typedef void (*get_included_service_callback)(int conn_id, int status,
-                btgatt_srvc_id_t *srvc_id, btgatt_srvc_id_t *incl_srvc_id);
-
 /** Callback invoked in response to [de]register_for_notification */
 typedef void (*register_for_notification_callback)(int conn_id,
-                int registered, int status, btgatt_srvc_id_t *srvc_id,
-                btgatt_gatt_id_t *char_id);
+                int registered, int status, uint16_t handle);
 
 /**
  * Remote device notification callback, invoked when a remote device sends
@@ -133,8 +149,7 @@ typedef void (*read_characteristic_callback)(int conn_id, int status,
                 btgatt_read_params_t *p_data);
 
 /** GATT write characteristic operation callback */
-typedef void (*write_characteristic_callback)(int conn_id, int status,
-                btgatt_write_params_t *p_data);
+typedef void (*write_characteristic_callback)(int conn_id, int status, uint16_t handle);
 
 /** GATT execute prepared write callback */
 typedef void (*execute_write_callback)(int conn_id, int status);
@@ -144,8 +159,7 @@ typedef void (*read_descriptor_callback)(int conn_id, int status,
                 btgatt_read_params_t *p_data);
 
 /** Callback invoked in response to write_descriptor */
-typedef void (*write_descriptor_callback)(int conn_id, int status,
-                btgatt_write_params_t *p_data);
+typedef void (*write_descriptor_callback)(int conn_id, int status, uint16_t handle);
 
 /** Callback triggered in response to read_remote_rssi */
 typedef void (*read_remote_rssi_callback)(int client_if, bt_bdaddr_t* bda,
@@ -202,8 +216,20 @@ typedef void (*batchscan_reports_callback)(int client_if, int status, int report
 typedef void (*batchscan_threshold_callback)(int client_if);
 
 /** Track ADV VSE callback invoked when tracked device is found or lost */
-typedef void (*track_adv_event_callback)(int client_if, int filt_index, int addr_type,
-                                             bt_bdaddr_t* bda, int adv_state);
+typedef void (*track_adv_event_callback)(btgatt_track_adv_info_t *p_track_adv_info);
+
+/** Callback invoked when scan parameter setup has completed */
+typedef void (*scan_parameter_setup_completed_callback)(int client_if,
+                                                        btgattc_error_t status);
+
+/** GATT get database callback */
+typedef void (*get_gatt_db_callback)(int conn_id, btgatt_db_element_t *db, int count);
+
+/** GATT services between start_handle and end_handle were removed */
+typedef void (*services_removed_callback)(int conn_id, uint16_t start_handle, uint16_t end_handle);
+
+/** GATT services were added */
+typedef void (*services_added_callback)(int conn_id, btgatt_db_element_t *added, int added_count);
 
 typedef struct {
     register_client_callback            register_client_cb;
@@ -211,10 +237,6 @@ typedef struct {
     connect_callback                    open_cb;
     disconnect_callback                 close_cb;
     search_complete_callback            search_complete_cb;
-    search_result_callback              search_result_cb;
-    get_characteristic_callback         get_characteristic_cb;
-    get_descriptor_callback             get_descriptor_cb;
-    get_included_service_callback       get_included_service_cb;
     register_for_notification_callback  register_for_notification_cb;
     notify_callback                     notify_cb;
     read_characteristic_callback        read_characteristic_cb;
@@ -238,6 +260,10 @@ typedef struct {
     batchscan_reports_callback          batchscan_reports_cb;
     batchscan_threshold_callback        batchscan_threshold_cb;
     track_adv_event_callback            track_adv_event_cb;
+    scan_parameter_setup_completed_callback scan_parameter_setup_completed_cb;
+    get_gatt_db_callback                get_gatt_db_cb;
+    services_removed_callback           services_removed_cb;
+    services_added_callback             services_added_cb;
 } btgatt_client_callbacks_t;
 
 /** Represents the standard BT-GATT client interface. */
@@ -272,48 +298,21 @@ typedef struct {
      */
     bt_status_t (*search_service)(int conn_id, bt_uuid_t *filter_uuid );
 
-    /**
-     * Enumerate included services for a given service.
-     * Set start_incl_srvc_id to NULL to get the first included service.
-     */
-    bt_status_t (*get_included_service)( int conn_id, btgatt_srvc_id_t *srvc_id,
-                                         btgatt_srvc_id_t *start_incl_srvc_id);
-
-    /**
-     * Enumerate characteristics for a given service.
-     * Set start_char_id to NULL to get the first characteristic.
-     */
-    bt_status_t (*get_characteristic)( int conn_id,
-                    btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *start_char_id);
-
-    /**
-     * Enumerate descriptors for a given characteristic.
-     * Set start_descr_id to NULL to get the first descriptor.
-     */
-    bt_status_t (*get_descriptor)( int conn_id,
-                    btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *char_id,
-                    btgatt_gatt_id_t *start_descr_id);
-
     /** Read a characteristic on a remote device */
-    bt_status_t (*read_characteristic)( int conn_id,
-                    btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *char_id,
+    bt_status_t (*read_characteristic)( int conn_id, uint16_t handle,
                     int auth_req );
 
     /** Write a remote characteristic */
-    bt_status_t (*write_characteristic)(int conn_id,
-                    btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *char_id,
+    bt_status_t (*write_characteristic)(int conn_id, uint16_t handle,
                     int write_type, int len, int auth_req,
                     char* p_value);
 
     /** Read the descriptor for a given characteristic */
-    bt_status_t (*read_descriptor)(int conn_id,
-                    btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *char_id,
-                    btgatt_gatt_id_t *descr_id, int auth_req);
+    bt_status_t (*read_descriptor)(int conn_id, uint16_t handle, int auth_req);
 
     /** Write a remote descriptor for a given characteristic */
-    bt_status_t (*write_descriptor)( int conn_id,
-                    btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *char_id,
-                    btgatt_gatt_id_t *descr_id, int write_type, int len,
+    bt_status_t (*write_descriptor)( int conn_id, uint16_t handle,
+                    int write_type, int len,
                     int auth_req, char* p_value);
 
     /** Execute a prepared write operation */
@@ -324,22 +323,17 @@ typedef struct {
      * characteristic
      */
     bt_status_t (*register_for_notification)( int client_if,
-                    const bt_bdaddr_t *bd_addr, btgatt_srvc_id_t *srvc_id,
-                    btgatt_gatt_id_t *char_id);
+                    const bt_bdaddr_t *bd_addr, uint16_t handle);
 
     /** Deregister a previous request for notifications/indications */
     bt_status_t (*deregister_for_notification)( int client_if,
-                    const bt_bdaddr_t *bd_addr, btgatt_srvc_id_t *srvc_id,
-                    btgatt_gatt_id_t *char_id);
+                    const bt_bdaddr_t *bd_addr, uint16_t handle);
 
     /** Request RSSI for a given remote device */
     bt_status_t (*read_remote_rssi)( int client_if, const bt_bdaddr_t *bd_addr);
 
     /** Setup scan filter params */
-    bt_status_t (*scan_filter_param_setup)(int client_if, int action, int filt_index, int feat_seln,
-                                      int list_logic_type, int filt_logic_type, int rssi_high_thres,
-                                      int rssi_low_thres, int dely_mode, int found_timeout,
-                                      int lost_timeout, int found_timeout_cnt);
+    bt_status_t (*scan_filter_param_setup)(btgatt_filt_param_setup_t filt_param);
 
 
     /** Configure a scan filter condition  */
@@ -374,7 +368,7 @@ typedef struct {
                     int max_interval, int latency, int timeout);
 
     /** Sets the LE scan interval and window in units of N*0.625 msec */
-    bt_status_t (*set_scan_parameters)(int scan_interval, int scan_window);
+    bt_status_t (*set_scan_parameters)(int client_if, int scan_interval, int scan_window);
 
     /* Setup the parameters as per spec, user manual specified values and enable multi ADV */
     bt_status_t (*multi_adv_enable)(int client_if, int min_interval,int max_interval,int adv_type,
@@ -409,6 +403,9 @@ typedef struct {
 
     /** Test mode interface */
     bt_status_t (*test_command)( int command, btgatt_test_params_t* params);
+
+    /** Get gatt db content */
+    bt_status_t (*get_gatt_db)( int conn_id);
 
 } btgatt_client_interface_t;
 

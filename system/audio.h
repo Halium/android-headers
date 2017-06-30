@@ -28,6 +28,19 @@
 
 __BEGIN_DECLS
 
+/* The macro FCC_2 highlights places where there are 2-channel assumptions.
+ * This is typically due to legacy implementation of stereo input or output.
+ * Search also for "2", "left", "right", "[0]", "[1]", ">> 16", "<< 16", etc.
+ * Do not change this value.
+ */
+#define FCC_2 2     // FCC_2 = Fixed Channel Count 2
+
+/* The macro FCC_8 highlights places where there are 8-channel assumptions.
+ * This is typically due to audio mixer and resampler limitations.
+ * Do not change this value without verifying all locations that use it.
+ */
+#define FCC_8 8     // FCC_8 = Fixed Channel Count 8
+
 /* The enums were moved here mostly from
  * frameworks/base/include/media/AudioSystem.h
  */
@@ -36,13 +49,6 @@ __BEGIN_DECLS
 #define AUDIO_REMOTE_SUBMIX_DEVICE_ADDRESS "0"
 
 /* AudioFlinger and AudioPolicy services use I/O handles to identify audio sources and sinks */
-
-#define AMR_FRAMESIZE 32
-#define QCELP_FRAMESIZE 35
-#define EVRC_FRAMESIZE 23
-#define AMR_WB_FRAMESIZE 61
-#define AAC_FRAMESIZE 2048
-
 typedef int audio_io_handle_t;
 #define AUDIO_IO_HANDLE_NONE    0
 
@@ -71,12 +77,9 @@ typedef enum {
     AUDIO_STREAM_REROUTING        = 11, /* For dynamic policy output mixes */
     AUDIO_STREAM_PATCH            = 12, /* For internal audio flinger tracks. Fixed volume */
     AUDIO_STREAM_PUBLIC_CNT       = AUDIO_STREAM_TTS + 1,
-#if defined(QCOM_HARDWARE) && !defined(QCOM_DIRECTTRACK)
-    AUDIO_STREAM_INCALL_MUSIC     = 13,
-    AUDIO_STREAM_CNT              = AUDIO_STREAM_INCALL_MUSIC + 1,
-#else
+    AUDIO_STREAM_FOR_POLICY_CNT   = AUDIO_STREAM_PATCH, /* number of streams considered by
+                                           audio policy for volume and routing */
     AUDIO_STREAM_CNT              = AUDIO_STREAM_PATCH + 1,
-#endif
 } audio_stream_type_t;
 
 /* Do not change these values without updating their counterparts
@@ -124,12 +127,15 @@ typedef uint32_t audio_flags_mask_t;
  * in frameworks/base/media/java/android/media/AudioAttributes.java
  */
 enum {
-    AUDIO_FLAG_AUDIBILITY_ENFORCED = 0x1,
-    AUDIO_FLAG_SECURE              = 0x2,
-    AUDIO_FLAG_SCO                 = 0x4,
-    AUDIO_FLAG_BEACON              = 0x8,
-    AUDIO_FLAG_HW_AV_SYNC          = 0x10,
-    AUDIO_FLAG_HW_HOTWORD          = 0x20,
+    AUDIO_FLAG_AUDIBILITY_ENFORCED        = 0x1,
+    AUDIO_FLAG_SECURE                     = 0x2,
+    AUDIO_FLAG_SCO                        = 0x4,
+    AUDIO_FLAG_BEACON                     = 0x8,
+    AUDIO_FLAG_HW_AV_SYNC                 = 0x10,
+    AUDIO_FLAG_HW_HOTWORD                 = 0x20,
+    AUDIO_FLAG_BYPASS_INTERRUPTION_POLICY = 0x40,
+    AUDIO_FLAG_BYPASS_MUTE                = 0x80,
+    AUDIO_FLAG_LOW_LATENCY                = 0x100,
 };
 
 /* Do not change these values without updating their counterparts
@@ -150,10 +156,9 @@ typedef enum {
                                           /* An example of remote presentation is Wifi Display */
                                           /*  where a dongle attached to a TV can be used to   */
                                           /*  play the mix captured by this audio source.      */
-#ifdef QCOM_HARDWARE
-    AUDIO_SOURCE_FM_RX               = 10,
-    AUDIO_SOURCE_FM_RX_A2DP          = 11,
-#endif
+    AUDIO_SOURCE_UNPROCESSED         = 9, /* Source for unprocessed sound.
+                                             Usage examples include level measurement and raw
+                                             signal analysis. */
     AUDIO_SOURCE_CNT,
     AUDIO_SOURCE_MAX                 = AUDIO_SOURCE_CNT - 1,
     AUDIO_SOURCE_FM_TUNER            = 1998,
@@ -175,6 +180,7 @@ typedef struct {
 } audio_attributes_t;
 
 /* special audio session values
+ * do not need to have audio_unique_id_get_use(session) == AUDIO_UNIQUE_ID_USE_SESSION
  * (XXX: should this be living in the audio effects land?)
  */
 typedef enum {
@@ -193,13 +199,44 @@ typedef enum {
      * and requests a new session ID to be allocated
      * TODO use unique values for AUDIO_SESSION_OUTPUT_MIX and AUDIO_SESSION_ALLOCATE,
      * after all uses have been updated from 0 to the appropriate symbol, and have been tested.
+     * Corresponds to AudioManager.AUDIO_SESSION_ID_GENERATE and AudioSystem.AUDIO_SESSION_ALLOCATE.
      */
     AUDIO_SESSION_ALLOCATE = 0,
+
+    /* For use with AudioRecord::start(), this indicates no trigger session.
+     * It is also used with output tracks and patch tracks, which never have a session.
+     */
+    AUDIO_SESSION_NONE = 0,
 } audio_session_t;
 
-/* a unique ID allocated by AudioFlinger for use as a audio_io_handle_t or audio_session_t */
+/* a unique ID allocated by AudioFlinger for use as an audio_io_handle_t, audio_session_t,
+ * effect ID (int), audio_module_handle_t, and audio_patch_handle_t.
+ * Audio port IDs (audio_port_handle_t) are allocated by AudioPolicy
+ * in a different namespace than AudioFlinger unique IDs.
+ */
 typedef int audio_unique_id_t;
 
+/* Possible uses for an audio_unique_id_t */
+typedef enum {
+    AUDIO_UNIQUE_ID_USE_UNSPECIFIED = 0,
+    AUDIO_UNIQUE_ID_USE_SESSION = 1,    // for allocated sessions, not special AUDIO_SESSION_*
+    AUDIO_UNIQUE_ID_USE_MODULE = 2,
+    AUDIO_UNIQUE_ID_USE_EFFECT = 3,
+    AUDIO_UNIQUE_ID_USE_PATCH = 4,
+    AUDIO_UNIQUE_ID_USE_OUTPUT = 5,
+    AUDIO_UNIQUE_ID_USE_INPUT = 6,
+    // 7 is available
+    AUDIO_UNIQUE_ID_USE_MAX = 8,  // must be a power-of-two
+    AUDIO_UNIQUE_ID_USE_MASK = AUDIO_UNIQUE_ID_USE_MAX - 1
+} audio_unique_id_use_t;
+
+/* Return the use of an audio_unique_id_t */
+static inline audio_unique_id_use_t audio_unique_id_get_use(audio_unique_id_t id)
+{
+    return (audio_unique_id_use_t) (id & AUDIO_UNIQUE_ID_USE_MASK);
+}
+
+/* Reserved audio_unique_id_t values.  FIXME: not a complete list. */
 #define AUDIO_UNIQUE_ID_ALLOCATE AUDIO_SESSION_ALLOCATE
 
 /* Audio sub formats (see enum audio_format). */
@@ -210,7 +247,7 @@ typedef enum {
     AUDIO_FORMAT_PCM_SUB_16_BIT          = 0x1, /* DO NOT CHANGE - PCM signed 16 bits */
     AUDIO_FORMAT_PCM_SUB_8_BIT           = 0x2, /* DO NOT CHANGE - PCM unsigned 8 bits */
     AUDIO_FORMAT_PCM_SUB_32_BIT          = 0x3, /* PCM signed .31 fixed point */
-    AUDIO_FORMAT_PCM_SUB_8_24_BIT        = 0x4, /* PCM signed 7.24 fixed point */
+    AUDIO_FORMAT_PCM_SUB_8_24_BIT        = 0x4, /* PCM signed 8.23 fixed point */
     AUDIO_FORMAT_PCM_SUB_FLOAT           = 0x5, /* PCM single-precision floating point */
     AUDIO_FORMAT_PCM_SUB_24_BIT_PACKED   = 0x6, /* PCM signed .23 fixed point packed in 3 bytes */
 } audio_format_pcm_sub_fmt_t;
@@ -250,16 +287,10 @@ typedef enum {
     AUDIO_FORMAT_VORBIS_SUB_NONE         = 0x0,
 } audio_format_vorbis_sub_fmt_t;
 
-#ifdef QCOM_HARDWARE
-/* DOLBY (AC3/EAC3) sub format field definition: specify dual-mono acmod... */
-typedef enum {
-     AUDIO_FORMAT_DOLBY_SUB_NONE         = 0x0,
-     AUDIO_FORMAT_DOLBY_SUB_DM           = 0x1, /* Clips with the Dual Mono content*/
-} audio_format_dolby_sub_fmt_t;
-#endif
 
-/* Audio format consists of a main format field (upper 8 bits) and a sub format
- * field (lower 24 bits).
+/* Audio format  is a 32-bit word that consists of:
+ *   main format field (upper 8 bits)
+ *   sub format field (lower 24 bits).
  *
  * The main format indicates the main codec type. The sub format field
  * indicates options and parameters for each format. The sub format is mainly
@@ -281,25 +312,32 @@ typedef enum {
     AUDIO_FORMAT_OPUS                = 0x08000000UL,
     AUDIO_FORMAT_AC3                 = 0x09000000UL,
     AUDIO_FORMAT_E_AC3               = 0x0A000000UL,
-
-#ifdef QCOM_HARDWARE
+    AUDIO_FORMAT_DTS                 = 0x0B000000UL,
+    AUDIO_FORMAT_DTS_HD              = 0x0C000000UL,
+    // IEC61937 is encoded audio wrapped in 16-bit PCM.
+    AUDIO_FORMAT_IEC61937            = 0x0D000000UL,
     AUDIO_FORMAT_EVRC                = 0x10000000UL,
     AUDIO_FORMAT_QCELP               = 0x11000000UL,
-    AUDIO_FORMAT_DTS                 = 0x12000000UL,
-    AUDIO_FORMAT_WMA                 = 0x13000000UL,
-    AUDIO_FORMAT_WMA_PRO             = 0x14000000UL,
-    AUDIO_FORMAT_AAC_ADIF            = 0x15000000UL,
-    AUDIO_FORMAT_EVRCB               = 0x16000000UL,
-    AUDIO_FORMAT_EVRCWB              = 0x17000000UL,
-    AUDIO_FORMAT_DTS_LBR             = 0x18000000UL,
-    AUDIO_FORMAT_AMR_WB_PLUS         = 0x19000000UL,
-    AUDIO_FORMAT_MP2                 = 0x1A000000UL,
-    AUDIO_FORMAT_EVRCNW              = 0x1B000000UL,
-#endif
-    AUDIO_FORMAT_PCM_OFFLOAD         = 0x1C000000UL,
-    AUDIO_FORMAT_FLAC                = 0x1D000000UL,
-    AUDIO_FORMAT_E_AC3_JOC           = 0x1E000000UL,
-    AUDIO_FORMAT_MAIN_MASK           = 0xFF000000UL,
+    AUDIO_FORMAT_WMA                 = 0x12000000UL,
+    AUDIO_FORMAT_WMA_PRO             = 0x13000000UL,
+    AUDIO_FORMAT_AAC_ADIF            = 0x14000000UL,
+    AUDIO_FORMAT_EVRCB               = 0x15000000UL,
+    AUDIO_FORMAT_EVRCWB              = 0x16000000UL,
+    AUDIO_FORMAT_AMR_WB_PLUS         = 0x17000000UL,
+    AUDIO_FORMAT_MP2                 = 0x18000000UL,
+    AUDIO_FORMAT_EVRCNW              = 0x19000000UL,
+    AUDIO_FORMAT_PCM_OFFLOAD         = 0x1A000000UL,
+    AUDIO_FORMAT_FLAC                = 0x1B000000UL,
+    AUDIO_FORMAT_ALAC                = 0x1C000000UL,
+    AUDIO_FORMAT_APE                 = 0x1D000000UL,
+    AUDIO_FORMAT_AAC_ADTS            = 0x1E000000UL,
+    AUDIO_FORMAT_DSD                 = 0x1F000000UL,
+    AUDIO_FORMAT_SBC                 = 0x20000000UL,
+    AUDIO_FORMAT_APTX                = 0x21000000UL,
+    AUDIO_FORMAT_APTX_HD             = 0x22000000UL,
+
+    AUDIO_FORMAT_DOLBY_TRUEHD        = 0x0E000000UL,
+    AUDIO_FORMAT_MAIN_MASK           = 0xFF000000UL, /* Deprecated. Use audio_get_main_format() */
     AUDIO_FORMAT_SUB_MASK            = 0x00FFFFFFUL,
 
     /* Aliases */
@@ -315,12 +353,6 @@ typedef enum {
                                         AUDIO_FORMAT_PCM_SUB_8_24_BIT),
     AUDIO_FORMAT_PCM_FLOAT           = (AUDIO_FORMAT_PCM |
                                         AUDIO_FORMAT_PCM_SUB_FLOAT),
-#ifdef QCOM_HARDWARE
-    AUDIO_FORMAT_AC3_DM              =  (AUDIO_FORMAT_AC3 |
-                                          AUDIO_FORMAT_DOLBY_SUB_DM),
-    AUDIO_FORMAT_E_AC3_DM             =  (AUDIO_FORMAT_E_AC3 |
-                                          AUDIO_FORMAT_DOLBY_SUB_DM),
-#endif
     AUDIO_FORMAT_PCM_24_BIT_PACKED   = (AUDIO_FORMAT_PCM |
                                         AUDIO_FORMAT_PCM_SUB_24_BIT_PACKED),
     AUDIO_FORMAT_AAC_MAIN            = (AUDIO_FORMAT_AAC |
@@ -342,6 +374,26 @@ typedef enum {
     AUDIO_FORMAT_AAC_HE_V2           = (AUDIO_FORMAT_AAC |
                                         AUDIO_FORMAT_AAC_SUB_HE_V2),
     AUDIO_FORMAT_AAC_ELD             = (AUDIO_FORMAT_AAC |
+                                        AUDIO_FORMAT_AAC_SUB_ELD),
+    AUDIO_FORMAT_AAC_ADTS_MAIN       = (AUDIO_FORMAT_AAC_ADTS |
+                                        AUDIO_FORMAT_AAC_SUB_MAIN),
+    AUDIO_FORMAT_AAC_ADTS_LC         = (AUDIO_FORMAT_AAC_ADTS |
+                                        AUDIO_FORMAT_AAC_SUB_LC),
+    AUDIO_FORMAT_AAC_ADTS_SSR        = (AUDIO_FORMAT_AAC_ADTS |
+                                        AUDIO_FORMAT_AAC_SUB_SSR),
+    AUDIO_FORMAT_AAC_ADTS_LTP        = (AUDIO_FORMAT_AAC_ADTS |
+                                        AUDIO_FORMAT_AAC_SUB_LTP),
+    AUDIO_FORMAT_AAC_ADTS_HE_V1      = (AUDIO_FORMAT_AAC_ADTS |
+                                        AUDIO_FORMAT_AAC_SUB_HE_V1),
+    AUDIO_FORMAT_AAC_ADTS_SCALABLE   = (AUDIO_FORMAT_AAC_ADTS |
+                                        AUDIO_FORMAT_AAC_SUB_SCALABLE),
+    AUDIO_FORMAT_AAC_ADTS_ERLC       = (AUDIO_FORMAT_AAC_ADTS |
+                                        AUDIO_FORMAT_AAC_SUB_ERLC),
+    AUDIO_FORMAT_AAC_ADTS_LD         = (AUDIO_FORMAT_AAC_ADTS |
+                                        AUDIO_FORMAT_AAC_SUB_LD),
+    AUDIO_FORMAT_AAC_ADTS_HE_V2      = (AUDIO_FORMAT_AAC_ADTS |
+                                        AUDIO_FORMAT_AAC_SUB_HE_V2),
+    AUDIO_FORMAT_AAC_ADTS_ELD        = (AUDIO_FORMAT_AAC_ADTS |
                                         AUDIO_FORMAT_AAC_SUB_ELD),
     /*Offload PCM formats*/
     AUDIO_FORMAT_PCM_16_BIT_OFFLOAD  = (AUDIO_FORMAT_PCM_OFFLOAD |
@@ -388,11 +440,9 @@ enum {
     AUDIO_CHANNEL_OUT_MONO     = AUDIO_CHANNEL_OUT_FRONT_LEFT,
     AUDIO_CHANNEL_OUT_STEREO   = (AUDIO_CHANNEL_OUT_FRONT_LEFT |
                                   AUDIO_CHANNEL_OUT_FRONT_RIGHT),
-#ifdef QCOM_HARDWARE
     AUDIO_CHANNEL_OUT_2POINT1  = (AUDIO_CHANNEL_OUT_FRONT_LEFT |
                                   AUDIO_CHANNEL_OUT_FRONT_RIGHT |
                                   AUDIO_CHANNEL_OUT_FRONT_CENTER),
-#endif
     AUDIO_CHANNEL_OUT_QUAD     = (AUDIO_CHANNEL_OUT_FRONT_LEFT |
                                   AUDIO_CHANNEL_OUT_FRONT_RIGHT |
                                   AUDIO_CHANNEL_OUT_BACK_LEFT |
@@ -403,14 +453,12 @@ enum {
                                   AUDIO_CHANNEL_OUT_FRONT_RIGHT |
                                   AUDIO_CHANNEL_OUT_SIDE_LEFT |
                                   AUDIO_CHANNEL_OUT_SIDE_RIGHT),
-#ifdef QCOM_HARDWARE
     AUDIO_CHANNEL_OUT_SURROUND = (AUDIO_CHANNEL_OUT_FRONT_LEFT |
                                   AUDIO_CHANNEL_OUT_FRONT_RIGHT |
                                   AUDIO_CHANNEL_OUT_FRONT_CENTER |
                                   AUDIO_CHANNEL_OUT_BACK_CENTER),
     AUDIO_CHANNEL_OUT_PENTA =    (AUDIO_CHANNEL_OUT_QUAD |
                                   AUDIO_CHANNEL_OUT_FRONT_CENTER),
-#endif
     AUDIO_CHANNEL_OUT_5POINT1  = (AUDIO_CHANNEL_OUT_FRONT_LEFT |
                                   AUDIO_CHANNEL_OUT_FRONT_RIGHT |
                                   AUDIO_CHANNEL_OUT_FRONT_CENTER |
@@ -425,7 +473,6 @@ enum {
                                   AUDIO_CHANNEL_OUT_LOW_FREQUENCY |
                                   AUDIO_CHANNEL_OUT_SIDE_LEFT |
                                   AUDIO_CHANNEL_OUT_SIDE_RIGHT),
-#ifdef QCOM_HARDWARE
     AUDIO_CHANNEL_OUT_6POINT1  = (AUDIO_CHANNEL_OUT_FRONT_LEFT |
                                   AUDIO_CHANNEL_OUT_FRONT_RIGHT |
                                   AUDIO_CHANNEL_OUT_FRONT_CENTER |
@@ -433,7 +480,6 @@ enum {
                                   AUDIO_CHANNEL_OUT_BACK_LEFT |
                                   AUDIO_CHANNEL_OUT_BACK_RIGHT |
                                   AUDIO_CHANNEL_OUT_BACK_CENTER),
-#endif
     // matches the correct AudioFormat.CHANNEL_OUT_7POINT1_SURROUND definition for 7.1
     AUDIO_CHANNEL_OUT_7POINT1  = (AUDIO_CHANNEL_OUT_FRONT_LEFT |
                                   AUDIO_CHANNEL_OUT_FRONT_RIGHT |
@@ -485,7 +531,6 @@ enum {
     AUDIO_CHANNEL_IN_MONO   = AUDIO_CHANNEL_IN_FRONT,
     AUDIO_CHANNEL_IN_STEREO = (AUDIO_CHANNEL_IN_LEFT | AUDIO_CHANNEL_IN_RIGHT),
     AUDIO_CHANNEL_IN_FRONT_BACK = (AUDIO_CHANNEL_IN_FRONT | AUDIO_CHANNEL_IN_BACK),
-#ifdef QCOM_HARDWARE
     AUDIO_CHANNEL_IN_5POINT1 = (AUDIO_CHANNEL_IN_LEFT |
                                AUDIO_CHANNEL_IN_RIGHT |
                                AUDIO_CHANNEL_IN_FRONT |
@@ -495,7 +540,6 @@ enum {
     AUDIO_CHANNEL_IN_VOICE_UPLINK_MONO = (AUDIO_CHANNEL_IN_VOICE_UPLINK | AUDIO_CHANNEL_IN_MONO),
     AUDIO_CHANNEL_IN_VOICE_DNLINK_MONO = (AUDIO_CHANNEL_IN_VOICE_DNLINK | AUDIO_CHANNEL_IN_MONO),
     AUDIO_CHANNEL_IN_VOICE_CALL_MONO   = (AUDIO_CHANNEL_IN_VOICE_UPLINK_MONO | AUDIO_CHANNEL_IN_VOICE_DNLINK_MONO),
-#endif
     AUDIO_CHANNEL_IN_ALL    = (AUDIO_CHANNEL_IN_LEFT |
                                AUDIO_CHANNEL_IN_RIGHT |
                                AUDIO_CHANNEL_IN_FRONT |
@@ -558,6 +602,22 @@ typedef enum {
     AUDIO_CHANNEL_REPRESENTATION_INDEX       = 2,
     // 3 is reserved for future use
 } audio_channel_representation_t;
+
+/* The channel index masks defined here are the canonical masks for 1 to 8 channel
+ * endpoints and apply to both source and sink.
+ */
+enum {
+    AUDIO_CHANNEL_INDEX_HDR  = AUDIO_CHANNEL_REPRESENTATION_INDEX << AUDIO_CHANNEL_COUNT_MAX,
+    AUDIO_CHANNEL_INDEX_MASK_1 =  AUDIO_CHANNEL_INDEX_HDR | ((1 << 1) - 1),
+    AUDIO_CHANNEL_INDEX_MASK_2 =  AUDIO_CHANNEL_INDEX_HDR | ((1 << 2) - 1),
+    AUDIO_CHANNEL_INDEX_MASK_3 =  AUDIO_CHANNEL_INDEX_HDR | ((1 << 3) - 1),
+    AUDIO_CHANNEL_INDEX_MASK_4 =  AUDIO_CHANNEL_INDEX_HDR | ((1 << 4) - 1),
+    AUDIO_CHANNEL_INDEX_MASK_5 =  AUDIO_CHANNEL_INDEX_HDR | ((1 << 5) - 1),
+    AUDIO_CHANNEL_INDEX_MASK_6 =  AUDIO_CHANNEL_INDEX_HDR | ((1 << 6) - 1),
+    AUDIO_CHANNEL_INDEX_MASK_7 =  AUDIO_CHANNEL_INDEX_HDR | ((1 << 7) - 1),
+    AUDIO_CHANNEL_INDEX_MASK_8 =  AUDIO_CHANNEL_INDEX_HDR | ((1 << 8) - 1),
+    // FIXME FCC_8
+};
 
 /* The return value is undefined if the channel mask is invalid. */
 static inline uint32_t audio_channel_mask_get_bits(audio_channel_mask_t channel)
@@ -680,10 +740,10 @@ enum {
     AUDIO_DEVICE_OUT_AUX_LINE                  = 0x200000,
     /* limited-output speaker device for acoustic safety */
     AUDIO_DEVICE_OUT_SPEAKER_SAFE              = 0x400000,
-#ifdef QCOM_HARDWARE
-    AUDIO_DEVICE_OUT_FM_TX                     = 0x1000000,
+    AUDIO_DEVICE_OUT_IP                        = 0x800000,
+    /* audio bus implemented by the audio system (e.g an MOST stereo channel) */
+    AUDIO_DEVICE_OUT_BUS                       = 0x1000000,
     AUDIO_DEVICE_OUT_PROXY                     = 0x2000000,
-#endif
     AUDIO_DEVICE_OUT_DEFAULT                   = AUDIO_DEVICE_BIT_DEFAULT,
     AUDIO_DEVICE_OUT_ALL      = (AUDIO_DEVICE_OUT_EARPIECE |
                                  AUDIO_DEVICE_OUT_SPEAKER |
@@ -708,10 +768,9 @@ enum {
                                  AUDIO_DEVICE_OUT_FM |
                                  AUDIO_DEVICE_OUT_AUX_LINE |
                                  AUDIO_DEVICE_OUT_SPEAKER_SAFE |
-#ifdef QCOM_HARDWARE
-                                 AUDIO_DEVICE_OUT_FM_TX |
+                                 AUDIO_DEVICE_OUT_IP |
+                                 AUDIO_DEVICE_OUT_BUS |
                                  AUDIO_DEVICE_OUT_PROXY |
-#endif
                                  AUDIO_DEVICE_OUT_DEFAULT),
     AUDIO_DEVICE_OUT_ALL_A2DP = (AUDIO_DEVICE_OUT_BLUETOOTH_A2DP |
                                  AUDIO_DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES |
@@ -721,7 +780,6 @@ enum {
                                  AUDIO_DEVICE_OUT_BLUETOOTH_SCO_CARKIT),
     AUDIO_DEVICE_OUT_ALL_USB  = (AUDIO_DEVICE_OUT_USB_ACCESSORY |
                                  AUDIO_DEVICE_OUT_USB_DEVICE),
-
     /* input devices */
     AUDIO_DEVICE_IN_COMMUNICATION         = AUDIO_DEVICE_BIT_IN | 0x1,
     AUDIO_DEVICE_IN_AMBIENT               = AUDIO_DEVICE_BIT_IN | 0x2,
@@ -749,11 +807,10 @@ enum {
     AUDIO_DEVICE_IN_SPDIF                 = AUDIO_DEVICE_BIT_IN | 0x10000,
     AUDIO_DEVICE_IN_BLUETOOTH_A2DP        = AUDIO_DEVICE_BIT_IN | 0x20000,
     AUDIO_DEVICE_IN_LOOPBACK              = AUDIO_DEVICE_BIT_IN | 0x40000,
-#ifdef QCOM_HARDWARE
-    AUDIO_DEVICE_IN_PROXY                 = AUDIO_DEVICE_BIT_IN | 0x100000,
-    AUDIO_DEVICE_IN_FM_RX                 = AUDIO_DEVICE_BIT_IN | 0x200000,
-    AUDIO_DEVICE_IN_FM_RX_A2DP            = AUDIO_DEVICE_BIT_IN | 0x400000,
-#endif
+    AUDIO_DEVICE_IN_IP                    = AUDIO_DEVICE_BIT_IN | 0x80000,
+    /* audio bus implemented by the audio system (e.g an MOST stereo channel) */
+    AUDIO_DEVICE_IN_BUS                   = AUDIO_DEVICE_BIT_IN | 0x100000,
+    AUDIO_DEVICE_IN_PROXY                 = AUDIO_DEVICE_BIT_IN | 0x1000000,
     AUDIO_DEVICE_IN_DEFAULT               = AUDIO_DEVICE_BIT_IN | AUDIO_DEVICE_BIT_DEFAULT,
 
     AUDIO_DEVICE_IN_ALL     = (AUDIO_DEVICE_IN_COMMUNICATION |
@@ -775,11 +832,9 @@ enum {
                                AUDIO_DEVICE_IN_SPDIF |
                                AUDIO_DEVICE_IN_BLUETOOTH_A2DP |
                                AUDIO_DEVICE_IN_LOOPBACK |
-#ifdef QCOM_HARDWARE
-                               AUDIO_DEVICE_IN_FM_RX |
-                               AUDIO_DEVICE_IN_FM_RX_A2DP |
+                               AUDIO_DEVICE_IN_IP |
+                               AUDIO_DEVICE_IN_BUS |
                                AUDIO_DEVICE_IN_PROXY |
-#endif
                                AUDIO_DEVICE_IN_DEFAULT),
     AUDIO_DEVICE_IN_ALL_SCO = AUDIO_DEVICE_IN_BLUETOOTH_SCO_HEADSET,
     AUDIO_DEVICE_IN_ALL_USB  = (AUDIO_DEVICE_IN_USB_ACCESSORY |
@@ -812,17 +867,19 @@ typedef enum {
     AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD = 0x10,  // offload playback of compressed
                                                 // streams to hardware codec
     AUDIO_OUTPUT_FLAG_NON_BLOCKING = 0x20, // use non-blocking write
-    AUDIO_OUTPUT_FLAG_HW_AV_SYNC = 0x40, // output uses a hardware A/V synchronization source
-#ifdef QCOM_HARDWARE
-    AUDIO_OUTPUT_FLAG_VOIP_RX = 0x1000,  // use this flag in combination with DIRECT to
-                                         // indicate HAL to activate EC & NS
-                                         // path for VOIP calls
-    AUDIO_OUTPUT_FLAG_INCALL_MUSIC = 0x2000, //use this flag for incall music delivery
-    // flag for HDMI compressed passthrough
-    AUDIO_OUTPUT_FLAG_COMPRESS_PASSTHROUGH = 0x4000,
-    AUDIO_OUTPUT_FLAG_LPA = 0x8000,
-    AUDIO_OUTPUT_FLAG_TUNNEL = 0x10000
-#endif
+    AUDIO_OUTPUT_FLAG_HW_AV_SYNC = 0x40,   // output uses a hardware A/V synchronization source
+    AUDIO_OUTPUT_FLAG_TTS = 0x80,          // output for streams transmitted through speaker
+                                           // at a sample rate high enough to accommodate
+                                           // lower-range ultrasonic playback
+    AUDIO_OUTPUT_FLAG_RAW = 0x100,         // minimize signal processing
+    AUDIO_OUTPUT_FLAG_SYNC = 0x200,        // synchronize I/O streams
+
+    AUDIO_OUTPUT_FLAG_IEC958_NONAUDIO = 0x400, // Audio stream contains compressed audio in
+                                               // SPDIF data bursts, not PCM.
+    AUDIO_OUTPUT_FLAG_VOIP_RX = 0x800,  // use this flag in combination with DIRECT to
+                                         // start voip over voice path.
+    AUDIO_OUTPUT_FLAG_COMPRESS_PASSTHROUGH = 0x1000, // flag for HDMI compressed passthrough
+    AUDIO_OUTPUT_FLAG_DIRECT_PCM = 0x2000, // flag for Direct PCM
 } audio_output_flags_t;
 
 /* The audio input flags are analogous to audio output flags.
@@ -834,6 +891,9 @@ typedef enum {
     AUDIO_INPUT_FLAG_NONE       = 0x0,  // no attributes
     AUDIO_INPUT_FLAG_FAST       = 0x1,  // prefer an input that supports "fast tracks"
     AUDIO_INPUT_FLAG_HW_HOTWORD = 0x2,  // prefer an input that captures from hw hotword source
+    AUDIO_INPUT_FLAG_RAW        = 0x4,  // minimize signal processing
+    AUDIO_INPUT_FLAG_SYNC       = 0x8,  // synchronize I/O streams
+
 } audio_input_flags_t;
 
 /* Additional information about compressed streams offloaded to
@@ -852,9 +912,49 @@ typedef struct {
     int64_t duration_us;                // duration in microseconds, -1 if unknown
     bool has_video;                     // true if stream is tied to a video stream
     bool is_streaming;                  // true if streaming, false if local playback
-    uint16_t bit_width;                 // bits per sample
-    bool use_small_bufs;                // true if offloading audio track
+    uint32_t bit_width;
+    uint32_t offload_buffer_size;       // offload fragment size
+    audio_usage_t usage;
 } audio_offload_info_t;
+
+/* Information about BT SBC encoder configuration
+ * This data is used between audio HAL module and
+ * BT IPC library to configure DSP encoder
+ */
+typedef struct {
+    uint32_t subband;    /* 4, 8 */
+    uint32_t blk_len;    /* 4, 8, 12, 16 */
+    uint16_t sampling_rate; /*44.1khz,48khz*/
+    uint8_t  channels;      /*0(Mono),1(Dual_mono),2(Stereo),3(JS)*/
+    uint8_t  alloc;         /*0(Loudness),1(SNR)*/
+    uint8_t  min_bitpool;   /* 2 */
+    uint8_t  max_bitpool;   /*53(44.1khz),51 (48khz) */
+    uint32_t bitrate;      /* 320kbps to 512kbps */
+} audio_sbc_encoder_config;
+
+
+/* Information about BT APTX encoder configuration
+ * This data is used between audio HAL module and
+ * BT IPC library to configure DSP encoder
+ */
+typedef struct {
+    uint16_t sampling_rate;
+    uint8_t  channels;
+    uint32_t bitrate;
+} audio_aptx_encoder_config;
+
+
+/* Information about BT AAC encoder configuration
+ * This data is used between audio HAL module and
+ * BT IPC library to configure DSP encoder
+ */
+typedef struct {
+    uint32_t enc_mode; /* LC, SBR, PS */
+    uint16_t format_flag; /* RAW, ADTS */
+    uint16_t channels; /* 1-Mono, 2-Stereo */
+    uint32_t sampling_rate;
+    uint32_t bitrate;
+} audio_aac_encoder_config;
 
 #define AUDIO_MAKE_OFFLOAD_INFO_VERSION(maj,min) \
             ((((maj) & 0xff) << 8) | ((min) & 0xff))
@@ -874,7 +974,8 @@ static const audio_offload_info_t AUDIO_INFO_INITIALIZER = {
     has_video: false,
     is_streaming: false,
     bit_width: 16,
-    use_small_bufs: false,
+    offload_buffer_size: 0,
+    usage: AUDIO_USAGE_UNKNOWN,
 };
 
 /* common audio stream configuration parameters
@@ -909,9 +1010,24 @@ static const audio_config_t AUDIO_CONFIG_INITIALIZER = {
     frame_count: 0,
 };
 
+struct audio_config_base {
+    uint32_t sample_rate;
+    audio_channel_mask_t channel_mask;
+    audio_format_t  format;
+};
+
+typedef struct audio_config_base audio_config_base_t;
+
+static const audio_config_base_t AUDIO_CONFIG_BASE_INITIALIZER = {
+    sample_rate: 0,
+    channel_mask: AUDIO_CHANNEL_NONE,
+    format: AUDIO_FORMAT_DEFAULT
+};
 
 /* audio hw module handle functions or structures referencing a module */
-typedef int audio_module_handle_t;
+typedef enum {
+    AUDIO_MODULE_HANDLE_NONE = 0,
+} audio_module_handle_t;
 
 /******************************
  *  Volume control
@@ -952,6 +1068,8 @@ struct audio_gain_config  {
     audio_gain_mode_t    mode;              /* mode requested for this command */
     audio_channel_mask_t channel_mask;      /* channels which gain value follows.
                                                N/A in joint mode */
+
+    // note this "8" is not FCC_8, so it won't need to be changed for > 8 channels
     int                  values[sizeof(audio_channel_mask_t) * 8]; /* gain values in millibels
                                                for each channel ordered from LSb to MSb in
                                                channel mask. The number of values is 1 in joint
@@ -990,6 +1108,8 @@ typedef enum {
 typedef int audio_port_handle_t;
 #define AUDIO_PORT_HANDLE_NONE 0
 
+/* the maximum length for the human-readable device name */
+#define AUDIO_PORT_MAX_NAME_LEN 128
 
 /* maximum audio device address length */
 #define AUDIO_DEVICE_MAX_ADDRESS_LEN 32
@@ -1084,11 +1204,11 @@ struct audio_port_session_ext {
     audio_session_t   session; /* audio session */
 };
 
-
 struct audio_port {
     audio_port_handle_t      id;                /* port unique ID */
     audio_port_role_t        role;              /* sink or source */
     audio_port_type_t        type;              /* device, mix ... */
+    char                     name[AUDIO_PORT_MAX_NAME_LEN];
     unsigned int             num_sample_rates;  /* number of sampling rates in following array */
     unsigned int             sample_rates[AUDIO_PORT_MAX_SAMPLING_RATES];
     unsigned int             num_channel_masks; /* number of channel masks in following array */
@@ -1114,8 +1234,9 @@ struct audio_port {
  * But the same patch receives another system wide unique handle allocated by the framework.
  * This unique handle is used for all transactions inside the framework.
  */
-typedef int audio_patch_handle_t;
-#define AUDIO_PATCH_HANDLE_NONE 0
+typedef enum {
+    AUDIO_PATCH_HANDLE_NONE = 0,
+} audio_patch_handle_t;
 
 #define AUDIO_PATCH_PORTS_MAX   16
 
@@ -1220,8 +1341,10 @@ static inline bool audio_is_usb_device(audio_devices_t device)
 
 static inline bool audio_is_remote_submix_device(audio_devices_t device)
 {
-    if ((device & AUDIO_DEVICE_OUT_REMOTE_SUBMIX) == AUDIO_DEVICE_OUT_REMOTE_SUBMIX
-            || (device & AUDIO_DEVICE_IN_REMOTE_SUBMIX) == AUDIO_DEVICE_IN_REMOTE_SUBMIX)
+    if ((audio_is_output_devices(device) &&
+         (device & AUDIO_DEVICE_OUT_REMOTE_SUBMIX) == AUDIO_DEVICE_OUT_REMOTE_SUBMIX)
+        || (!audio_is_output_devices(device) &&
+         (device & AUDIO_DEVICE_IN_REMOTE_SUBMIX) == AUDIO_DEVICE_IN_REMOTE_SUBMIX))
         return true;
     else
         return false;
@@ -1313,6 +1436,25 @@ static inline uint32_t audio_channel_count_from_out_mask(audio_channel_mask_t ch
     }
 }
 
+/* Derive a channel mask for index assignment from a channel count.
+ * Returns the matching channel mask,
+ * or AUDIO_CHANNEL_NONE if the channel count is zero,
+ * or AUDIO_CHANNEL_INVALID if the channel count exceeds AUDIO_CHANNEL_COUNT_MAX.
+ */
+static inline audio_channel_mask_t audio_channel_mask_for_index_assignment_from_count(
+        uint32_t channel_count)
+{
+    if (channel_count == 0) {
+        return AUDIO_CHANNEL_NONE;
+    }
+    if (channel_count > AUDIO_CHANNEL_COUNT_MAX) {
+        return AUDIO_CHANNEL_INVALID;
+    }
+    uint32_t bits = (1 << channel_count) - 1;
+    return audio_channel_mask_from_representation_and_bits(
+            AUDIO_CHANNEL_REPRESENTATION_INDEX, bits);
+}
+
 /* Derive an output channel mask for position assignment from a channel count.
  * This is to be used when the content channel mask is unknown. The 1, 2, 4, 5, 6, 7 and 8 channel
  * cases are mapped to the standard game/home-theater layouts, but note that 4 is mapped to quad,
@@ -1353,6 +1495,7 @@ static inline audio_channel_mask_t audio_channel_out_mask_from_count(uint32_t ch
     case 8:
         bits = AUDIO_CHANNEL_OUT_7POINT1;
         break;
+    // FIXME FCC_8
     default:
         return AUDIO_CHANNEL_INVALID;
     }
@@ -1360,14 +1503,13 @@ static inline audio_channel_mask_t audio_channel_out_mask_from_count(uint32_t ch
             AUDIO_CHANNEL_REPRESENTATION_POSITION, bits);
 }
 
-/* Derive an input channel mask for position assignment from a channel count.
- * Currently handles only mono and stereo.
+/* Derive a default input channel mask from a channel count.
+ * Assumes a position mask for mono and stereo, or an index mask for channel counts > 2.
  * Returns the matching channel mask,
  * or AUDIO_CHANNEL_NONE if the channel count is zero,
  * or AUDIO_CHANNEL_INVALID if the channel count exceeds that of the
  * configurations for which a default input channel mask is defined.
  */
-/* Similar to above, but for input.  Currently handles mono, stereo and 5.1 input. */
 static inline audio_channel_mask_t audio_channel_in_mask_from_count(uint32_t channel_count)
 {
     uint32_t bits;
@@ -1380,35 +1522,19 @@ static inline audio_channel_mask_t audio_channel_in_mask_from_count(uint32_t cha
     case 2:
         bits = AUDIO_CHANNEL_IN_STEREO;
         break;
-#ifdef QCOM_HARDWARE
+    case 3:
+    case 4:
+    case 5:
     case 6:
-        bits = AUDIO_CHANNEL_IN_5POINT1;
-        break;
-#endif
+    case 7:
+    case 8:
+        // FIXME FCC_8
+        return audio_channel_mask_for_index_assignment_from_count(channel_count);
     default:
         return AUDIO_CHANNEL_INVALID;
     }
     return audio_channel_mask_from_representation_and_bits(
             AUDIO_CHANNEL_REPRESENTATION_POSITION, bits);
-}
-
-/* Derive a channel mask for index assignment from a channel count.
- * Returns the matching channel mask,
- * or AUDIO_CHANNEL_NONE if the channel count is zero,
- * or AUDIO_CHANNEL_INVALID if the channel count exceeds AUDIO_CHANNEL_COUNT_MAX.
- */
-static inline audio_channel_mask_t audio_channel_mask_for_index_assignment_from_count(
-        uint32_t channel_count)
-{
-    if (channel_count == 0) {
-        return AUDIO_CHANNEL_NONE;
-    }
-    if (channel_count > AUDIO_CHANNEL_COUNT_MAX) {
-        return AUDIO_CHANNEL_INVALID;
-    }
-    uint32_t bits = (1 << channel_count) - 1;
-    return audio_channel_mask_from_representation_and_bits(
-            AUDIO_CHANNEL_REPRESENTATION_INDEX, bits);
 }
 
 static inline bool audio_is_valid_format(audio_format_t format)
@@ -1431,43 +1557,74 @@ static inline bool audio_is_valid_format(audio_format_t format)
     case AUDIO_FORMAT_AMR_NB:
     case AUDIO_FORMAT_AMR_WB:
     case AUDIO_FORMAT_AAC:
+    case AUDIO_FORMAT_AAC_ADTS:
     case AUDIO_FORMAT_HE_AAC_V1:
     case AUDIO_FORMAT_HE_AAC_V2:
     case AUDIO_FORMAT_VORBIS:
     case AUDIO_FORMAT_OPUS:
     case AUDIO_FORMAT_AC3:
     case AUDIO_FORMAT_E_AC3:
-#ifdef QCOM_HARDWARE
+    case AUDIO_FORMAT_DTS:
+    case AUDIO_FORMAT_DTS_HD:
+    case AUDIO_FORMAT_IEC61937:
     case AUDIO_FORMAT_QCELP:
     case AUDIO_FORMAT_EVRC:
     case AUDIO_FORMAT_EVRCB:
     case AUDIO_FORMAT_EVRCWB:
     case AUDIO_FORMAT_AAC_ADIF:
-    case AUDIO_FORMAT_WMA:
-    case AUDIO_FORMAT_WMA_PRO:
-    case AUDIO_FORMAT_DTS:
-    case AUDIO_FORMAT_DTS_LBR:
     case AUDIO_FORMAT_AMR_WB_PLUS:
     case AUDIO_FORMAT_MP2:
     case AUDIO_FORMAT_EVRCNW:
     case AUDIO_FORMAT_FLAC:
-    case AUDIO_FORMAT_E_AC3_JOC:
+    case AUDIO_FORMAT_ALAC:
+    case AUDIO_FORMAT_APE:
+    case AUDIO_FORMAT_WMA:
+    case AUDIO_FORMAT_WMA_PRO:
+    case AUDIO_FORMAT_DSD:
         return true;
     case AUDIO_FORMAT_PCM_OFFLOAD:
         if (format != AUDIO_FORMAT_PCM_16_BIT_OFFLOAD &&
                 format != AUDIO_FORMAT_PCM_24_BIT_OFFLOAD) {
             return false;
         }
-#endif
+    case AUDIO_FORMAT_DOLBY_TRUEHD:
         return true;
     default:
         return false;
     }
 }
 
+/**
+ * Extract the primary format, eg. PCM, AC3, etc.
+ */
+static inline audio_format_t audio_get_main_format(audio_format_t format)
+{
+    return (audio_format_t)(format & AUDIO_FORMAT_MAIN_MASK);
+}
+
+/**
+ * Is the data plain PCM samples that can be scaled and mixed?
+ */
 static inline bool audio_is_linear_pcm(audio_format_t format)
 {
-    return ((format & AUDIO_FORMAT_MAIN_MASK) == AUDIO_FORMAT_PCM);
+    return (audio_get_main_format(format) == AUDIO_FORMAT_PCM);
+}
+
+/**
+ * For this format, is the number of PCM audio frames directly proportional
+ * to the number of data bytes?
+ *
+ * In other words, is the format transported as PCM audio samples,
+ * but not necessarily scalable or mixable.
+ * This returns true for real PCM, but also for AUDIO_FORMAT_IEC61937,
+ * which is transported as 16 bit PCM audio, but where the encoded data
+ * cannot be mixed or scaled.
+ */
+static inline bool audio_has_proportional_frames(audio_format_t format)
+{
+    audio_format_t mainFormat = audio_get_main_format(format);
+    return (mainFormat == AUDIO_FORMAT_PCM
+            || mainFormat == AUDIO_FORMAT_IEC61937);
 }
 
 static inline bool audio_is_offload_pcm(audio_format_t format)
@@ -1476,31 +1633,6 @@ static inline bool audio_is_offload_pcm(audio_format_t format)
     return ((format & AUDIO_FORMAT_MAIN_MASK) == AUDIO_FORMAT_PCM_OFFLOAD);
 #endif
     return false;
-}
-
-static inline bool audio_is_compress_capture_format(audio_format_t format)
-{
-#ifdef QCOM_HARDWARE
-    if (format == AUDIO_FORMAT_AMR_WB)
-        return true;
-    else
-#endif
-        return false;
-}
-
-static inline bool audio_is_compress_voip_format(audio_format_t format)
-{
-#ifdef QCOM_HARDWARE
-    if (format == AUDIO_FORMAT_AMR_NB ||
-        format == AUDIO_FORMAT_AMR_WB ||
-        format == AUDIO_FORMAT_EVRC ||
-        format == AUDIO_FORMAT_EVRCB ||
-        format == AUDIO_FORMAT_EVRCWB ||
-        format == AUDIO_FORMAT_EVRCNW)
-        return true;
-    else
-#endif
-        return false;
 }
 
 static inline size_t audio_bytes_per_sample(audio_format_t format)
@@ -1517,6 +1649,7 @@ static inline size_t audio_bytes_per_sample(audio_format_t format)
         size = sizeof(uint8_t) * 3;
         break;
     case AUDIO_FORMAT_PCM_16_BIT:
+    case AUDIO_FORMAT_IEC61937:
     case AUDIO_FORMAT_PCM_16_BIT_OFFLOAD:
         size = sizeof(int16_t);
         break;
@@ -1526,34 +1659,14 @@ static inline size_t audio_bytes_per_sample(audio_format_t format)
     case AUDIO_FORMAT_PCM_FLOAT:
         size = sizeof(float);
         break;
-#ifdef QCOM_HARDWARE
-    case AUDIO_FORMAT_AMR_NB:
-        size = 32;
-        break;
-    case AUDIO_FORMAT_EVRC:
-        size = 23;
-        break;
-    case AUDIO_FORMAT_QCELP:
-        size = 35;
-        break;
-    case AUDIO_FORMAT_AAC:
-        size = 2048;
-        break;
-    case AUDIO_FORMAT_AMR_WB:
-        size = 61;
-        break;
-#endif
     default:
-#ifdef QCOM_HARDWARE
-        size = sizeof(uint8_t);
-#endif
         break;
     }
     return size;
 }
 
 /* converts device address to string sent to audio HAL via set_parameters */
-static char *audio_device_address_to_parameter(audio_devices_t device, const char *address)
+static inline char *audio_device_address_to_parameter(audio_devices_t device, const char *address)
 {
     const size_t kSize = AUDIO_DEVICE_MAX_ADDRESS_LEN + sizeof("a2dp_sink_address=");
     char param[kSize];
@@ -1568,6 +1681,24 @@ static char *audio_device_address_to_parameter(audio_devices_t device, const cha
     return strdup(param);
 }
 
+static inline bool audio_device_is_digital(audio_devices_t device) {
+    if ((device & AUDIO_DEVICE_BIT_IN) != 0) {
+        // input
+        return (~AUDIO_DEVICE_BIT_IN & device & (AUDIO_DEVICE_IN_ALL_USB |
+                          AUDIO_DEVICE_IN_HDMI |
+                          AUDIO_DEVICE_IN_SPDIF |
+                          AUDIO_DEVICE_IN_IP |
+                          AUDIO_DEVICE_IN_BUS)) != 0;
+    } else {
+        // output
+        return (device & (AUDIO_DEVICE_OUT_ALL_USB |
+                          AUDIO_DEVICE_OUT_HDMI |
+                          AUDIO_DEVICE_OUT_HDMI_ARC |
+                          AUDIO_DEVICE_OUT_SPDIF |
+                          AUDIO_DEVICE_OUT_IP |
+                          AUDIO_DEVICE_OUT_BUS)) != 0;
+    }
+}
 
 __END_DECLS
 

@@ -89,6 +89,11 @@ typedef enum android_LogPriority {
 } android_LogPriority;
 
 /*
+ * Release any logger resources (a new log write will immediately re-acquire)
+ */
+void __android_log_close();
+
+/*
  * Send a simple string to the log.
  */
 int __android_log_write(int prio, const char *tag, const char *text);
@@ -124,7 +129,7 @@ int __android_log_vprint(int prio, const char *tag,
 void __android_log_assert(const char *cond, const char *tag,
                           const char *fmt, ...)
 #if defined(__GNUC__)
-    __attribute__ ((noreturn))
+    __attribute__ ((__noreturn__))
 #ifdef __USE_MINGW_ANSI_STDIO
 #if __USE_MINGW_ANSI_STDIO
     __attribute__ ((format(gnu_printf, 3, 4)))

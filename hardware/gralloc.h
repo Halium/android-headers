@@ -75,7 +75,7 @@ enum {
     GRALLOC_USAGE_SW_READ_OFTEN         = 0x00000003,
     /* mask for the software read values */
     GRALLOC_USAGE_SW_READ_MASK          = 0x0000000F,
-    
+
     /* buffer is never written in software */
     GRALLOC_USAGE_SW_WRITE_NEVER        = 0x00000000,
     /* buffer is rarely written in software */
@@ -95,6 +95,21 @@ enum {
     GRALLOC_USAGE_HW_COMPOSER           = 0x00000800,
     /* buffer will be used with the framebuffer device */
     GRALLOC_USAGE_HW_FB                 = 0x00001000,
+
+    /* buffer should be displayed full-screen on an external display when
+     * possible */
+    GRALLOC_USAGE_EXTERNAL_DISP         = 0x00002000,
+
+    /* Must have a hardware-protected path to external display sink for
+     * this buffer.  If a hardware-protected path is not available, then
+     * either don't composite only this buffer (preferred) to the
+     * external sink, or (less desirable) do not route the entire
+     * composition to the external sink.  */
+    GRALLOC_USAGE_PROTECTED             = 0x00004000,
+
+    /* buffer may be used as a cursor */
+    GRALLOC_USAGE_CURSOR                = 0x00008000,
+
     /* buffer will be used with the HW video encoder */
     GRALLOC_USAGE_HW_VIDEO_ENCODER      = 0x00010000,
     /* buffer will be written by the HW camera pipeline */
@@ -111,21 +126,16 @@ enum {
     /* buffer will be used as a RenderScript Allocation */
     GRALLOC_USAGE_RENDERSCRIPT          = 0x00100000,
 
-    /* buffer should be displayed full-screen on an external display when
-     * possible
-     */
-    GRALLOC_USAGE_EXTERNAL_DISP         = 0x00002000,
+    /* Set by the consumer to indicate to the producer that they may attach a
+     * buffer that they did not detach from the BufferQueue. Will be filtered
+     * out by GRALLOC_USAGE_ALLOC_MASK, so gralloc modules will not need to
+     * handle this flag. */
+    GRALLOC_USAGE_FOREIGN_BUFFERS       = 0x00200000,
 
-    /* Must have a hardware-protected path to external display sink for
-     * this buffer.  If a hardware-protected path is not available, then
-     * either don't composite only this buffer (preferred) to the
-     * external sink, or (less desirable) do not route the entire
-     * composition to the external sink.
-     */
-    GRALLOC_USAGE_PROTECTED             = 0x00004000,
-
-    /* buffer may be used as a cursor */
-    GRALLOC_USAGE_CURSOR                = 0x00008000,
+    /* Mask of all flags which could be passed to a gralloc module for buffer
+     * allocation. Any flags not in this mask do not need to be handled by
+     * gralloc modules. */
+    GRALLOC_USAGE_ALLOC_MASK            = ~(GRALLOC_USAGE_FOREIGN_BUFFERS),
 
     /* implementation-specific private usage flags */
     GRALLOC_USAGE_PRIVATE_0             = 0x10000000,
@@ -133,6 +143,19 @@ enum {
     GRALLOC_USAGE_PRIVATE_2             = 0x40000000,
     GRALLOC_USAGE_PRIVATE_3             = 0x80000000,
     GRALLOC_USAGE_PRIVATE_MASK          = 0xF0000000,
+
+#ifdef EXYNOS4_ENHANCEMENTS
+    /* SAMSUNG */
+    GRALLOC_USAGE_PRIVATE_NONECACHE     = 0x00800000,
+
+    GRALLOC_USAGE_HW_FIMC1              = 0x01000000,
+    GRALLOC_USAGE_HW_ION                = 0x02000000,
+    GRALLOC_USAGE_YUV_ADDR              = 0x04000000,
+    GRALLOC_USAGE_CAMERA                = 0x08000000,
+
+    /* SEC Private usage , for Overlay path at HWC */
+    GRALLOC_USAGE_HWC_HWOVERLAY         = 0x20000000,
+#endif
 };
 
 /*****************************************************************************/
@@ -227,6 +250,10 @@ typedef struct gralloc_module_t {
     int (*unlock)(struct gralloc_module_t const* module,
             buffer_handle_t handle);
 
+#ifdef EXYNOS4_ENHANCEMENTS
+    int (*getphys) (struct gralloc_module_t const* module,
+            buffer_handle_t handle, void** paddr);
+#endif
 
     /* reserved for future use */
     int (*perform)(struct gralloc_module_t const* module,
@@ -367,6 +394,38 @@ static inline int gralloc_open(const struct hw_module_t* module,
 
 static inline int gralloc_close(struct alloc_device_t* device) {
     return device->common.close(&device->common);
+}
+
+/**
+ * map_usage_to_memtrack should be called after allocating a gralloc buffer.
+ *
+ * @param usage - it is the flag used when alloc function is called.
+ *
+ * This function maps the gralloc usage flags to appropriate memtrack bucket.
+ * GrallocHAL implementers and users should make an additional ION_IOCTL_TAG
+ * call using the memtrack tag returned by this function. This will help the
+ * in-kernel memtack to categorize the memory allocated by different processes
+ * according to their usage.
+ *
+ */
+static inline const char* map_usage_to_memtrack(uint32_t usage) {
+    usage &= GRALLOC_USAGE_ALLOC_MASK;
+
+    if ((usage & GRALLOC_USAGE_HW_CAMERA_WRITE) != 0) {
+        return "camera";
+    } else if ((usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) != 0 ||
+            (usage & GRALLOC_USAGE_EXTERNAL_DISP) != 0) {
+        return "video";
+    } else if ((usage & GRALLOC_USAGE_HW_RENDER) != 0 ||
+            (usage & GRALLOC_USAGE_HW_TEXTURE) != 0) {
+        return "gl";
+    } else if ((usage & GRALLOC_USAGE_HW_CAMERA_READ) != 0) {
+        return "camera";
+    } else if ((usage & GRALLOC_USAGE_SW_READ_MASK) != 0 ||
+            (usage & GRALLOC_USAGE_SW_WRITE_MASK) != 0) {
+        return "cpu";
+    }
+    return "graphics";
 }
 
 __END_DECLS
