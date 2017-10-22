@@ -1,6 +1,0 @@
-Subject: Collected Debian patches for android-headers
-Author: Simon Fels <simon.fels@canonical.com>
-
-The android-headers package is maintained in git rather than maintaining
-patches as separate files, and separating patches doesn't seem to be worth
-the effort. They are therefore all included in a single debian patch.

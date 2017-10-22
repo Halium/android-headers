@@ -1,7 +1,7 @@
 Source: android-headers
 Priority: extra
 Section: libdevel
-Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Maintainer: UBports Developers <UBports-dev@list.ubports.com>
 Build-Depends: debhelper (>= 9), quilt
 Standards-Version: 3.9.6
 Vcs-Git: https://git.launchpad.net/android-headers
@@ -85,3 +85,18 @@ Description: Android Platform Headers from AOSP releases
  .
  This package provides the platform development headers for core components
  of AOSP (Android Open Source Project), for the 6.0 release
+
+ Package: android-headers-24
+ Architecture: all
+ Multi-Arch: foreign
+ Depends: ${misc:Depends}
+ Description: Android Platform Headers from AOSP releases
+  Android NDK provided by Google contains subset of AOSP platform
+  headers which are deemed "external interface" by Google. However,
+  writing advanced software for Android necessitates access to complete
+  platform. Many aspects of it change, sometimes drastically, between
+  releases, so compiling user source code against platform headers for
+  different releases is required (e.g. for libhybris).
+  .
+  This package provides the platform development headers for core components
+  of AOSP (Android Open Source Project), for the 7.1 release

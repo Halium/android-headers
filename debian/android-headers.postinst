@@ -3,6 +3,6 @@
 set -e
 
 dpkg-maintscript-helper dir_to_symlink \
-	/usr/include/android /usr/include/android-19 23-0ubuntu2~ android-headers -- "$@"
+	/usr/include/android /usr/include/android-19 24-0ubports5~ android-headers -- "$@"
 
 #DEBHELPER#
