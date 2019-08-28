@@ -1,7 +1,5 @@
 /*
- * Copyright (c) 2013, The Linux Foundation. All rights reserved.
- * Not a Contribution
- * Copyright (C) 2012 The Android Open Source Project
+ * Copyright (C) 2016 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,8 +65,8 @@ typedef struct
     uint32_t delay_variation;
 } bthd_qos_param_t;
 
-typedef void (* bthd_application_state_callback)(bt_bdaddr_t *bd_addr, bthd_application_state_t state);
-typedef void (* bthd_connection_state_callback)(bt_bdaddr_t *bd_addr, bthd_connection_state_t state);
+typedef void (* bthd_application_state_callback)(RawAddress *bd_addr, bthd_application_state_t state);
+typedef void (* bthd_connection_state_callback)(RawAddress *bd_addr, bthd_connection_state_t state);
 typedef void (* bthd_get_report_callback)(uint8_t type, uint8_t id, uint16_t buffer_size);
 typedef void (* bthd_set_report_callback)(uint8_t type, uint8_t id, uint16_t len, uint8_t *p_data);
 typedef void (* bthd_set_protocol_callback)(uint8_t protocol);
@@ -107,7 +105,7 @@ typedef struct {
     bt_status_t (*unregister_app)(void);
 
     /** connects to host with virtual cable */
-    bt_status_t (*connect)(void);
+    bt_status_t (*connect)(RawAddress *bd_addr);
 
     /** disconnects from currently connected host */
     bt_status_t (*disconnect)(void);

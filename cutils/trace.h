@@ -71,7 +71,8 @@ __BEGIN_DECLS
 #define ATRACE_TAG_SYSTEM_SERVER    (1<<19)
 #define ATRACE_TAG_DATABASE         (1<<20)
 #define ATRACE_TAG_NETWORK          (1<<21)
-#define ATRACE_TAG_LAST             ATRACE_TAG_NETWORK
+#define ATRACE_TAG_ADB              (1<<22)
+#define ATRACE_TAG_LAST             ATRACE_TAG_ADB
 
 // Reserved for initialization.
 #define ATRACE_TAG_NOT_READY        (1ULL<<63)
@@ -189,8 +190,8 @@ static inline void atrace_begin(uint64_t tag, const char* name)
 static inline void atrace_end(uint64_t tag)
 {
     if (CC_UNLIKELY(atrace_is_tag_enabled(tag))) {
-        char c = 'E';
-        write(atrace_marker_fd, &c, 1);
+        void atrace_end_body();
+        atrace_end_body();
     }
 }
 
