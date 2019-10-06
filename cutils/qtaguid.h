@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 The Android Open Source Project
+ * Copyright (C) 2017 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,7 @@
 #ifndef __CUTILS_QTAGUID_H
 #define __CUTILS_QTAGUID_H
 
-#include <stdint.h>
 #include <sys/types.h>
-#include <unistd.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,12 +25,12 @@ extern "C" {
 
 /*
  * Set tags (and owning UIDs) for network sockets.
-*/
+ */
 extern int qtaguid_tagSocket(int sockfd, int tag, uid_t uid);
 
 /*
  * Untag a network socket before closing.
-*/
+ */
 extern int qtaguid_untagSocket(int sockfd);
 
 /*
@@ -44,8 +42,8 @@ extern int qtaguid_setCounterSet(int counterSetNum, uid_t uid);
 
 /*
  * Delete all tag info that relates to the given tag an uid.
- * If the tag is 0, then ALL info about the uid is freeded.
- * The delete data also affects active tagged socketd, which are
+ * If the tag is 0, then ALL info about the uid is freed.
+ * The delete data also affects active tagged sockets, which are
  * then untagged.
  * The calling process can only operate on its own tags.
  * Unless it is part of the happy AID_NET_BW_ACCT group.
