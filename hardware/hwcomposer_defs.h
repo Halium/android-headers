@@ -136,9 +136,9 @@ enum {
  */
 enum {
     /*
-     * HWC_SKIP_LAYER is set by SurfaceFlnger to indicate that the HAL
+     * HWC_SKIP_LAYER is set by SurfaceFlinger to indicate that the HAL
      * shall not consider this layer for composition as it will be handled
-     * by SurfaceFlinger (just as if compositionType was set to HWC_OVERLAY).
+     * by SurfaceFlinger (just as if compositionType was set to HWC_FRAMEBUFFER).
      */
     HWC_SKIP_LAYER = 0x00000001,
 
@@ -254,26 +254,15 @@ enum {
 enum {
     HWC_DISPLAY_PRIMARY     = 0,
     HWC_DISPLAY_EXTERNAL    = 1,    // HDMI, DP, etc.
-#ifdef QTI_BSP
-    HWC_DISPLAY_TERTIARY    = 2,
-    HWC_DISPLAY_VIRTUAL     = 3,
-
-    HWC_NUM_PHYSICAL_DISPLAY_TYPES = 3,
-    HWC_NUM_DISPLAY_TYPES          = 4,
-#else
     HWC_DISPLAY_VIRTUAL     = 2,
 
     HWC_NUM_PHYSICAL_DISPLAY_TYPES = 2,
     HWC_NUM_DISPLAY_TYPES          = 3,
-#endif
 };
 
 enum {
     HWC_DISPLAY_PRIMARY_BIT     = 1 << HWC_DISPLAY_PRIMARY,
     HWC_DISPLAY_EXTERNAL_BIT    = 1 << HWC_DISPLAY_EXTERNAL,
-#ifdef QTI_BSP
-    HWC_DISPLAY_TERTIARY_BIT    = 1 << HWC_DISPLAY_TERTIARY,
-#endif
     HWC_DISPLAY_VIRTUAL_BIT     = 1 << HWC_DISPLAY_VIRTUAL,
 };
 

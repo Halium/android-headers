@@ -129,7 +129,7 @@ typedef uint16_t        NFCSTATUS;      /**< \ingroup grp_nfc_common
  * compiler warnings. 
  */
 
-#define PHNFC_UNUSED_VARIABLE(x) for((x)=(x);(x)!=(x);)
+#define PHNFC_UNUSED_VARIABLE(x) (void)x
 
 /*@}*/
 

@@ -18,6 +18,7 @@
 #define __CUTILS_SOCKETS_H
 
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,6 +35,7 @@ typedef SOCKET cutils_socket_t;
 #else
 
 #include <sys/socket.h>
+#include <netinet/in.h>
 
 typedef int cutils_socket_t;
 #define INVALID_SOCKET (-1)
@@ -51,28 +53,8 @@ extern "C" {
  * android_get_control_socket - simple helper function to get the file
  * descriptor of our init-managed Unix domain socket. `name' is the name of the
  * socket, as given in init.rc. Returns -1 on error.
- *
- * This is inline and not in libcutils proper because we want to use this in
- * third-party daemons with minimal modification.
  */
-static inline int android_get_control_socket(const char* name)
-{
-	char key[64];
-	snprintf(key, sizeof(key), ANDROID_SOCKET_ENV_PREFIX "%s", name);
-
-	const char* val = getenv(key);
-	if (!val) {
-		return -1;
-	}
-
-	errno = 0;
-	int fd = strtol(val, NULL, 10);
-	if (errno) {
-		return -1;
-	}
-
-	return fd;
-}
+int android_get_control_socket(const char* name);
 
 /*
  * See also android.os.LocalSocketAddress.Namespace
@@ -103,11 +85,9 @@ static inline int android_get_control_socket(const char* name)
  *
  * These functions return INVALID_SOCKET (-1) on failure for all platforms.
  */
-int socket_loopback_client(int port, int type);
 cutils_socket_t socket_network_client(const char* host, int port, int type);
 int socket_network_client_timeout(const char* host, int port, int type,
                                   int timeout, int* getaddrinfo_error);
-int socket_loopback_server(int port, int type);
 int socket_local_server(const char* name, int namespaceId, int type);
 int socket_local_server_bind(int s, const char* name, int namespaceId);
 int socket_local_client_connect(int fd, const char *name, int namespaceId,

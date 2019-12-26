@@ -1,0 +1,112 @@
+================================================
+bionic @ Wed Aug 28 15:07:47 CEST 2019
+================================================
++ cd /home/herriemerim/halium-8.1
++ repo status bionic
+nothing to commit (working directory clean)
++ cd /home/herriemerim/halium-8.1/bionic
++ git show-ref --head
+5295920e767c1fa503eacca3e8c63a845f83558a HEAD
+5295920e767c1fa503eacca3e8c63a845f83558a refs/remotes/github/hybris-15.1
+5295920e767c1fa503eacca3e8c63a845f83558a refs/remotes/m/halium-8.1
++ git remote -v
+github	https://github.com/mer-hybris/android_bionic (fetch)
+github	https://github.com/mer-hybris/android_bionic (push)
+
+
+================================================
+hardware/libhardware @ Wed Aug 28 15:07:47 CEST 2019
+================================================
++ cd /home/herriemerim/halium-8.1
++ repo status hardware/libhardware
+nothing to commit (working directory clean)
++ cd /home/herriemerim/halium-8.1/hardware/libhardware
++ git show-ref --head
+1fe375de2ed55d407976ebfaf62fb8db05dcf1dd HEAD
+1fe375de2ed55d407976ebfaf62fb8db05dcf1dd refs/remotes/github/hybris-15.1
+1fe375de2ed55d407976ebfaf62fb8db05dcf1dd refs/remotes/m/halium-8.1
++ git remote -v
+github	https://github.com/mer-hybris/android_hardware_libhardware (fetch)
+github	https://github.com/mer-hybris/android_hardware_libhardware (push)
+
+
+================================================
+hardware/libhardware_legacy @ Wed Aug 28 15:07:47 CEST 2019
+================================================
++ cd /home/herriemerim/halium-8.1
++ repo status hardware/libhardware_legacy
+nothing to commit (working directory clean)
++ cd /home/herriemerim/halium-8.1/hardware/libhardware_legacy
++ git show-ref --head
+3a1106e3476bdc936d755db64bc5d0d8982c6044 HEAD
+3a1106e3476bdc936d755db64bc5d0d8982c6044 refs/remotes/github/lineage-15.1
+3a1106e3476bdc936d755db64bc5d0d8982c6044 refs/remotes/m/halium-8.1
++ git remote -v
+github	https://github.com/LineageOS/android_hardware_libhardware_legacy (fetch)
+github	https://github.com/LineageOS/android_hardware_libhardware_legacy (push)
+
+
+================================================
+system/core @ Wed Aug 28 15:07:47 CEST 2019
+================================================
++ cd /home/herriemerim/halium-8.1
++ repo status system/core
+nothing to commit (working directory clean)
++ cd /home/herriemerim/halium-8.1/system/core
++ git show-ref --head
+45817b48dc7522fa7b2069bf0eb39c57fa97f007 HEAD
+45817b48dc7522fa7b2069bf0eb39c57fa97f007 refs/remotes/github/halium-8.1
+45817b48dc7522fa7b2069bf0eb39c57fa97f007 refs/remotes/m/halium-8.1
++ git remote -v
+github	https://github.com/herrie82/android_system_core-1 (fetch)
+github	https://github.com/herrie82/android_system_core-1 (push)
+
+
+================================================
+system/media @ Wed Aug 28 15:07:47 CEST 2019
+================================================
++ cd /home/herriemerim/halium-8.1
++ repo status system/media
+nothing to commit (working directory clean)
++ cd /home/herriemerim/halium-8.1/system/media
++ git show-ref --head
+e693a2b6551584e256ab7c87c277dcc3f601e6de HEAD
+964cdeefb8650c246e2f6b08405e818d17b834b8 refs/remotes/m/halium-8.1
+964cdeefb8650c246e2f6b08405e818d17b834b8 refs/tags/android-8.1.0_r52
++ git remote -v
+aosp	https://android.googlesource.com/platform/system/media (fetch)
+aosp	https://android.googlesource.com/platform/system/media (push)
+
+
+================================================
+external/kernel-headers @ Wed Aug 28 15:07:47 CEST 2019
+================================================
++ cd /home/herriemerim/halium-8.1
++ repo status external/kernel-headers
+nothing to commit (working directory clean)
++ cd /home/herriemerim/halium-8.1/external/kernel-headers
++ git show-ref --head
+3d5032f6a22aa4c6de0000400379c4ccccbe31bd HEAD
+fe43fe195c3af279821b614f8a34604e8e4bbfb9 refs/remotes/m/halium-8.1
+fe43fe195c3af279821b614f8a34604e8e4bbfb9 refs/tags/android-8.1.0_r52
++ git remote -v
+aosp	https://android.googlesource.com/platform/external/kernel-headers (fetch)
+aosp	https://android.googlesource.com/platform/external/kernel-headers (push)
+
+
+================================================
+external/libnfc-nxp @ Wed Aug 28 15:07:47 CEST 2019
+================================================
++ cd /home/herriemerim/halium-8.1
++ repo status external/libnfc-nxp
+nothing to commit (working directory clean)
++ cd /home/herriemerim/halium-8.1/external/libnfc-nxp
++ git show-ref --head
+e4fb0694ac4eb888f098598bd895587b71747ce5 HEAD
+e4fb0694ac4eb888f098598bd895587b71747ce5 refs/remotes/github/lineage-15.1
+e4fb0694ac4eb888f098598bd895587b71747ce5 refs/remotes/m/halium-8.1
++ git remote -v
+github	https://github.com/LineageOS/android_external_libnfc-nxp (fetch)
+github	https://github.com/LineageOS/android_external_libnfc-nxp (push)
+
+

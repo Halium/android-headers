@@ -442,58 +442,6 @@ uint32_t phFriNfc_NdefRecord_GetLength(phFriNfc_NdefRecord_t* pRecord);
 
 /** \internal
  *
- *  This is a sub function to the Generate Function. This function will get bit fields of the Flags Byte
- *  and returns the Status Flag. No Error Checks done here.
- *
- * \note <b>This is not a user API. This should not be exposed in the SDK.</b>
- */
- static uint8_t phFriNfc_NdefRecord_NdefFlag(uint8_t Flags,uint8_t Mask);
-
-/** \internal
- *
- *  This is a sub function to the Parse Function. This function will get only flag bits in a Packet
- *  and omit the Type Name Format bits. No Error Checks done here.
- *
- * \note <b>This is not a user API. This should not be exposed in the SDK.</b>
- */
- static uint8_t phFriNfc_NdefRecord_RecordFlag ( uint8_t* pRecord);
-
-/** \internal
- *
- *  This is a sub function to the Parse Function. This function will get only Type Name Format bits in a Packet
- *  and omit the other Flags bits. No Error Checks done here.
- *
- * \note <b>This is not a user API. This should not be exposed in the SDK.</b>
- */
- static uint8_t phFriNfc_NdefRecord_TypeNameFormat ( uint8_t* pRecord);
-
-/** \internal
- *  
- *  This function is a sub function of both Get Records and Parse function. This function extracts the
- *  Type Length, Payload Length and ID Length for the respective Type, Payload and ID Data.
- *
- * \param[in]   Record              The data buffer holding the NDEF Message, as provided by the caller.
- * \param[out]  TypeLength          Length of the Type Data.
- * \param[out]  TypeLengthByte      Number of Bytes required to store Type Length.
- * \param[out]  PayloadLengthByte   Number of Bytes required to store Payload Length depends on Short and 
- *                                  Normal Record.
- * \param[out]  PayloadLength       Length of the Payload Data.
- * \param[out]  IDLengthByte        Number of Bytes required to store ID Length.
- * \param[out]  IDLength            Length of the ID Data.
- *
- * \note <b>This is not a user API. This should not be exposed in the SDK.</b>
- *
- */
-static NFCSTATUS phFriNfc_NdefRecord_RecordIDCheck (uint8_t*	   pRecord,
-													uint8_t*	   pTypeLength,
-													uint8_t*	   pTypeLengthByte,
-													uint8_t*	   pPayloadLengthByte,
-													uint32_t*	   pPayloadLength,
-													uint8_t*	   pIDLengthByte,
-													uint8_t*	   pIDLength
-													);
-/** \internal
- *
  *  This is a sub function to the Parse Function. This function will get only Type Name Format bits in a Packet
  *  and omit the other Flags bits. No Error Checks done here.
  *
