@@ -1,0 +1,148 @@
+================================================
+bionic @ Tue Apr 20 21:53:09 CEST 2021
+================================================
++ cd 9.0
++ repo status bionic
+
+... A new version of repo (2.12) is available.
+... You should upgrade soon:
+    cp /media/herrie/HaliumDisk/9.0/.repo/repo/repo /home/herrie/bin/repo
+
+project bionic/                                 (*** NO BRANCH ***)
+prior sync failed; rebase still in progress
++ cd 9.0/bionic
+./extract-headers-10.sh: 351: cd: can't cd to 9.0/bionic
++ git show-ref --head
+fatal: not a git repository (or any parent up to mount point /media/herrie)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
++ git remote -v
+fatal: not a git repository (or any parent up to mount point /media/herrie)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+
+================================================
+hardware/libhardware @ Tue Apr 20 21:53:09 CEST 2021
+================================================
++ cd 9.0
++ repo status hardware/libhardware
+
+... A new version of repo (2.12) is available.
+... You should upgrade soon:
+    cp /media/herrie/HaliumDisk/9.0/.repo/repo/repo /home/herrie/bin/repo
+
+nothing to commit (working directory clean)
++ cd 9.0/hardware/libhardware
+./extract-headers-10.sh: 351: cd: can't cd to 9.0/hardware/libhardware
++ git show-ref --head
+fatal: not a git repository (or any parent up to mount point /media/herrie)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
++ git remote -v
+fatal: not a git repository (or any parent up to mount point /media/herrie)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+
+================================================
+hardware/libhardware_legacy @ Tue Apr 20 21:53:09 CEST 2021
+================================================
++ cd 9.0
++ repo status hardware/libhardware_legacy
+
+... A new version of repo (2.12) is available.
+... You should upgrade soon:
+    cp /media/herrie/HaliumDisk/9.0/.repo/repo/repo /home/herrie/bin/repo
+
+nothing to commit (working directory clean)
++ cd 9.0/hardware/libhardware_legacy
+./extract-headers-10.sh: 351: cd: can't cd to 9.0/hardware/libhardware_legacy
++ git show-ref --head
+fatal: not a git repository (or any parent up to mount point /media/herrie)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
++ git remote -v
+fatal: not a git repository (or any parent up to mount point /media/herrie)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+
+================================================
+system/core @ Tue Apr 20 21:53:09 CEST 2021
+================================================
++ cd 9.0
++ repo status system/core
+
+... A new version of repo (2.12) is available.
+... You should upgrade soon:
+    cp /media/herrie/HaliumDisk/9.0/.repo/repo/repo /home/herrie/bin/repo
+
+nothing to commit (working directory clean)
++ cd 9.0/system/core
+./extract-headers-10.sh: 351: cd: can't cd to 9.0/system/core
++ git show-ref --head
+fatal: not a git repository (or any parent up to mount point /media/herrie)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
++ git remote -v
+fatal: not a git repository (or any parent up to mount point /media/herrie)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+
+================================================
+system/media @ Tue Apr 20 21:53:09 CEST 2021
+================================================
++ cd 9.0
++ repo status system/media
+
+... A new version of repo (2.12) is available.
+... You should upgrade soon:
+    cp /media/herrie/HaliumDisk/9.0/.repo/repo/repo /home/herrie/bin/repo
+
+nothing to commit (working directory clean)
++ cd 9.0/system/media
+./extract-headers-10.sh: 351: cd: can't cd to 9.0/system/media
++ git show-ref --head
+fatal: not a git repository (or any parent up to mount point /media/herrie)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
++ git remote -v
+fatal: not a git repository (or any parent up to mount point /media/herrie)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+
+================================================
+external/kernel-headers @ Tue Apr 20 21:53:09 CEST 2021
+================================================
++ cd 9.0
++ repo status external/kernel-headers
+
+... A new version of repo (2.12) is available.
+... You should upgrade soon:
+    cp /media/herrie/HaliumDisk/9.0/.repo/repo/repo /home/herrie/bin/repo
+
+nothing to commit (working directory clean)
++ cd 9.0/external/kernel-headers
+./extract-headers-10.sh: 351: cd: can't cd to 9.0/external/kernel-headers
++ git show-ref --head
+fatal: not a git repository (or any parent up to mount point /media/herrie)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
++ git remote -v
+fatal: not a git repository (or any parent up to mount point /media/herrie)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+
+================================================
+external/libnfc-nxp @ Tue Apr 20 21:53:09 CEST 2021
+================================================
++ cd 9.0
++ repo status external/libnfc-nxp
+
+... A new version of repo (2.12) is available.
+... You should upgrade soon:
+    cp /media/herrie/HaliumDisk/9.0/.repo/repo/repo /home/herrie/bin/repo
+
+nothing to commit (working directory clean)
++ cd 9.0/external/libnfc-nxp
+./extract-headers-10.sh: 351: cd: can't cd to 9.0/external/libnfc-nxp
++ git show-ref --head
+fatal: not a git repository (or any parent up to mount point /media/herrie)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
++ git remote -v
+fatal: not a git repository (or any parent up to mount point /media/herrie)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+
