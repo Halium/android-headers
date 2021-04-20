@@ -777,8 +777,8 @@ static inline audio_channel_mask_t audio_channel_out_mask_from_count(uint32_t ch
     case 2:
         bits = AUDIO_CHANNEL_OUT_STEREO;
         break;
-    case 3: // 2.1
-        bits = AUDIO_CHANNEL_OUT_STEREO | AUDIO_CHANNEL_OUT_LOW_FREQUENCY;
+    case 3:
+        bits = AUDIO_CHANNEL_OUT_STEREO | AUDIO_CHANNEL_OUT_FRONT_CENTER;
         break;
     case 4: // 4.0
         bits = AUDIO_CHANNEL_OUT_QUAD;

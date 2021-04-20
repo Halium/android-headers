@@ -1,0 +1,4 @@
+Name: android-headers
+Description: Provides the headers for the droid system
+Version: 9.0.0
+Cflags: -I@includedir@

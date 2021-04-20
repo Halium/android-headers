@@ -21,4 +21,6 @@
 
 #include <android-version.h>
 
+/* CONFIG GOES HERE */
+
 #endif

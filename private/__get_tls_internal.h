@@ -51,4 +51,3 @@
 #endif
 
 #endif /* __BIONIC_PRIVATE_GET_TLS_INTERNAL_H_ */
-
