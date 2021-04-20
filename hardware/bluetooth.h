@@ -27,16 +27,7 @@
 
 __BEGIN_DECLS
 
-/**	
-* The Bluetooth Hardware Module ID
-*/
-
 #define BLUETOOTH_INTERFACE_STRING "bluetoothInterface"
-#define BT_HARDWARE_MODULE_ID "bluetooth"
-#define BT_STACK_MODULE_ID "bluetooth"
-#define BT_STACK_TEST_MODULE_ID "bluetooth_test"
-#define bluetooth_module_t "bluetooth_test"
-
 
 /** Bluetooth profile interface IDs */
 
