@@ -1,7 +1,5 @@
 /*
  * Copyright (C) 2011 The Android Open Source Project
- * Copyright (c) 2011-2014, The Linux Foundation. All rights reserved.
- * Not a Contribution.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,15 +22,13 @@
 #include <strings.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include <cutils/bitops.h>
 
 #include <hardware/hardware.h>
 #include <system/audio.h>
 #include <hardware/audio_effect.h>
-#ifdef AUDIO_LISTEN_ENABLED
-#include <listen_types.h>
-#endif
 
 __BEGIN_DECLS
 
@@ -60,22 +56,10 @@ __BEGIN_DECLS
 #define AUDIO_DEVICE_API_VERSION_1_0 HARDWARE_DEVICE_API_VERSION(1, 0)
 #define AUDIO_DEVICE_API_VERSION_2_0 HARDWARE_DEVICE_API_VERSION(2, 0)
 #define AUDIO_DEVICE_API_VERSION_3_0 HARDWARE_DEVICE_API_VERSION(3, 0)
-#define AUDIO_DEVICE_API_VERSION_CURRENT AUDIO_DEVICE_API_VERSION_3_0
+#define AUDIO_DEVICE_API_VERSION_3_1 HARDWARE_DEVICE_API_VERSION(3, 1)
+#define AUDIO_DEVICE_API_VERSION_CURRENT AUDIO_DEVICE_API_VERSION_3_1
 /* Minimal audio HAL version supported by the audio framework */
 #define AUDIO_DEVICE_API_VERSION_MIN AUDIO_DEVICE_API_VERSION_2_0
-
-/**
- * List of known audio HAL modules. This is the base name of the audio HAL
- * library composed of the "audio." prefix, one of the base names below and
- * a suffix specific to the device.
- * e.g: audio.primary.goldfish.so or audio.a2dp.default.so
- */
-
-#define AUDIO_HARDWARE_MODULE_ID_PRIMARY "primary"
-#define AUDIO_HARDWARE_MODULE_ID_A2DP "a2dp"
-#define AUDIO_HARDWARE_MODULE_ID_USB "usb"
-#define AUDIO_HARDWARE_MODULE_ID_REMOTE_SUBMIX "r_submix"
-#define AUDIO_HARDWARE_MODULE_ID_CODEC_OFFLOAD "codec_offload"
 
 /**************************************/
 
@@ -87,11 +71,6 @@ __BEGIN_DECLS
  *  audio device parameters
  */
 
-/* BT SCO Noise Reduction + Echo Cancellation parameters */
-#define AUDIO_PARAMETER_KEY_BT_NREC "bt_headset_nrec"
-#define AUDIO_PARAMETER_VALUE_ON "on"
-#define AUDIO_PARAMETER_VALUE_OFF "off"
-
 /* TTY mode selection */
 #define AUDIO_PARAMETER_KEY_TTY_MODE "tty_mode"
 #define AUDIO_PARAMETER_VALUE_TTY_OFF "tty_off"
@@ -99,8 +78,7 @@ __BEGIN_DECLS
 #define AUDIO_PARAMETER_VALUE_TTY_HCO "tty_hco"
 #define AUDIO_PARAMETER_VALUE_TTY_FULL "tty_full"
 
-/* Hearing Aid Compatibility - Telecoil (HAC-T) mode on/off
-   Strings must be in sync with CallFeaturesSetting.java */
+/* Hearing Aid Compatibility - Telecoil (HAC-T) mode on/off */
 #define AUDIO_PARAMETER_KEY_HAC "HACSetting"
 #define AUDIO_PARAMETER_VALUE_HAC_ON "ON"
 #define AUDIO_PARAMETER_VALUE_HAC_OFF "OFF"
@@ -111,100 +89,26 @@ __BEGIN_DECLS
 /* A2DP source address set by framework */
 #define AUDIO_PARAMETER_A2DP_SOURCE_ADDRESS "a2dp_source_address"
 
-/* Screen state */
-#define AUDIO_PARAMETER_KEY_SCREEN_STATE "screen_state"
-
 /* Bluetooth SCO wideband */
 #define AUDIO_PARAMETER_KEY_BT_SCO_WB "bt_wbs"
 
-/* Get a new HW synchronization source identifier.
- * Return a valid source (positive integer) or AUDIO_HW_SYNC_INVALID if an error occurs
- * or no HW sync is available. */
-#define AUDIO_PARAMETER_HW_AV_SYNC "hw_av_sync"
+/* BT SCO headset name for debug */
+#define AUDIO_PARAMETER_KEY_BT_SCO_HEADSET_NAME "bt_headset_name"
+
+/* BT SCO HFP control */
+#define AUDIO_PARAMETER_KEY_HFP_ENABLE            "hfp_enable"
+#define AUDIO_PARAMETER_KEY_HFP_SET_SAMPLING_RATE "hfp_set_sampling_rate"
+#define AUDIO_PARAMETER_KEY_HFP_VOLUME            "hfp_volume"
+
+/* Set screen orientation */
+#define AUDIO_PARAMETER_KEY_ROTATION "rotation"
 
 /**
  *  audio stream parameters
  */
 
-#define AUDIO_PARAMETER_STREAM_ROUTING "routing"             /* audio_devices_t */
-#define AUDIO_PARAMETER_STREAM_FORMAT "format"               /* audio_format_t */
-#define AUDIO_PARAMETER_STREAM_CHANNELS "channels"           /* audio_channel_mask_t */
-#define AUDIO_PARAMETER_STREAM_FRAME_COUNT "frame_count"     /* size_t */
-#define AUDIO_PARAMETER_STREAM_INPUT_SOURCE "input_source"   /* audio_source_t */
-#define AUDIO_PARAMETER_STREAM_SAMPLING_RATE "sampling_rate" /* uint32_t */
-
-#define AUDIO_PARAMETER_DEVICE_CONNECT "connect"            /* audio_devices_t */
-#define AUDIO_PARAMETER_DEVICE_DISCONNECT "disconnect"      /* audio_devices_t */
-
-/* Query supported formats. The response is a '|' separated list of strings from
- * audio_format_t enum e.g: "sup_formats=AUDIO_FORMAT_PCM_16_BIT" */
-#define AUDIO_PARAMETER_STREAM_SUP_FORMATS "sup_formats"
-/* Query supported channel masks. The response is a '|' separated list of strings from
- * audio_channel_mask_t enum e.g: "sup_channels=AUDIO_CHANNEL_OUT_STEREO|AUDIO_CHANNEL_OUT_MONO" */
-#define AUDIO_PARAMETER_STREAM_SUP_CHANNELS "sup_channels"
-/* Query supported sampling rates. The response is a '|' separated list of integer values e.g:
- * "sup_sampling_rates=44100|48000" */
-#define AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES "sup_sampling_rates"
-
-/* Set the HW synchronization source for an output stream. */
-#define AUDIO_PARAMETER_STREAM_HW_AV_SYNC "hw_av_sync"
-
-/* Query handle fm parameter*/
-#define AUDIO_PARAMETER_KEY_HANDLE_FM "handle_fm"
-
-/* Query voip flag */
-#define AUDIO_PARAMETER_KEY_VOIP_CHECK "voip_flag"
-
-/* Query Fluence type */
-#define AUDIO_PARAMETER_KEY_FLUENCE_TYPE "fluence"
-
-/* Query if surround sound recording is supported */
-#define AUDIO_PARAMETER_KEY_SSR "ssr"
-
-/* Query if a2dp  is supported */
-#define AUDIO_PARAMETER_KEY_HANDLE_A2DP_DEVICE "isA2dpDeviceSupported"
-
-/* Query ADSP Status */
-#define AUDIO_PARAMETER_KEY_ADSP_STATUS "ADSP_STATUS"
-
-/* Query if Proxy can be Opend */
-#define AUDIO_CAN_OPEN_PROXY "can_open_proxy"
-
-/* Query fm volume */
-#define AUDIO_PARAMETER_KEY_FM_VOLUME "fm_volume"
-
-/**
- * audio codec parameters
- */
-
-#define AUDIO_OFFLOAD_CODEC_PARAMS "music_offload_codec_param"
-#define AUDIO_OFFLOAD_CODEC_BIT_PER_SAMPLE "music_offload_bit_per_sample"
-#define AUDIO_OFFLOAD_CODEC_BIT_RATE "music_offload_bit_rate"
-#define AUDIO_OFFLOAD_CODEC_AVG_BIT_RATE "music_offload_avg_bit_rate"
-#define AUDIO_OFFLOAD_CODEC_ID "music_offload_codec_id"
-#define AUDIO_OFFLOAD_CODEC_BLOCK_ALIGN "music_offload_block_align"
-#define AUDIO_OFFLOAD_CODEC_SAMPLE_RATE "music_offload_sample_rate"
-#define AUDIO_OFFLOAD_CODEC_ENCODE_OPTION "music_offload_encode_option"
-#define AUDIO_OFFLOAD_CODEC_NUM_CHANNEL  "music_offload_num_channels"
-#define AUDIO_OFFLOAD_CODEC_DOWN_SAMPLING  "music_offload_down_sampling"
-#define AUDIO_OFFLOAD_CODEC_DELAY_SAMPLES  "delay_samples"
-#define AUDIO_OFFLOAD_CODEC_PADDING_SAMPLES  "padding_samples"
-
-/* Query if surround sound recording is supported */
-#define AUDIO_PARAMETER_KEY_SSR "ssr"
-
-/* Query ADSP Status */
-#define AUDIO_PARAMETER_KEY_ADSP_STATUS "ADSP_STATUS"
-
-#ifdef QCOM_DIRECTTRACK
-/** Structure to save buffer information for applying effects for
-+ *  LPA buffers */
-struct buf_info {
-    int bufsize;
-    int nBufs;
-    int **buffers;
-};
-#endif
+/* Enable AANC */
+#define AUDIO_PARAMETER_KEY_AANC "aanc_enabled"
 
 /**************************************/
 
@@ -295,10 +199,18 @@ typedef struct audio_stream audio_stream_t;
 /* type of asynchronous write callback events. Mutually exclusive */
 typedef enum {
     STREAM_CBK_EVENT_WRITE_READY, /* non blocking write completed */
-    STREAM_CBK_EVENT_DRAIN_READY  /* drain completed */
+    STREAM_CBK_EVENT_DRAIN_READY,  /* drain completed */
+    STREAM_CBK_EVENT_ERROR, /* stream hit some error, let AF take action */
 } stream_callback_event_t;
 
+typedef enum {
+    STREAM_EVENT_CBK_TYPE_CODEC_FORMAT_CHANGED, /* codec format of the stream changed */
+} stream_event_callback_type_t;
+
 typedef int (*stream_callback_t)(stream_callback_event_t event, void *param, void *cookie);
+
+typedef int (*stream_event_callback_t)(stream_event_callback_type_t event,
+                                       void *param, void *cookie);
 
 /* type of drain requested to audio_stream_out->drain(). Mutually exclusive */
 typedef enum {
@@ -308,13 +220,24 @@ typedef enum {
                                    give time for gapless track switch */
 } audio_drain_type_t;
 
+typedef struct source_metadata {
+    size_t track_count;
+    /** Array of metadata of each track connected to this source. */
+    struct playback_track_metadata* tracks;
+} source_metadata_t;
+
+typedef struct sink_metadata {
+    size_t track_count;
+    /** Array of metadata of each track connected to this sink. */
+    struct record_track_metadata* tracks;
+} sink_metadata_t;
+
 /**
  * audio_stream_out is the abstraction interface for the audio output hardware.
  *
  * It provides information about various properties of the audio output
  * hardware driver.
  */
-
 struct audio_stream_out {
     /**
      * Common methods of the audio stream out.  This *must* be the first member of audio_stream_out
@@ -358,18 +281,6 @@ struct audio_stream_out {
      */
     int (*get_render_position)(const struct audio_stream_out *stream,
                                uint32_t *dsp_frames);
-
-#ifdef QCOM_DIRECTTRACK
-    /**
-     * start audio data rendering
-     */
-    int (*start)(struct audio_stream_out *stream);
-
-    /**
-     * stop audio data rendering
-     */
-    int (*stop)(struct audio_stream_out *stream);
-#endif
 
     /**
      * get the local time at which the next write to the audio driver will be presented.
@@ -452,30 +363,79 @@ struct audio_stream_out {
     int (*get_presentation_position)(const struct audio_stream_out *stream,
                                uint64_t *frames, struct timespec *timestamp);
 
-#ifdef QCOM_DIRECTTRACK
     /**
-    * return the current timestamp after quering to the driver
+     * Called by the framework to start a stream operating in mmap mode.
+     * create_mmap_buffer must be called before calling start()
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \return 0 in case of success.
+     *         -ENOSYS if called out of sequence or on non mmap stream
      */
-    int (*get_time_stamp)(const struct audio_stream_out *stream,
-                               uint64_t *time_stamp);
+    int (*start)(const struct audio_stream_out* stream);
+
     /**
-    * EOS notification from HAL to Player
+     * Called by the framework to stop a stream operating in mmap mode.
+     * Must be called after start()
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \return 0 in case of success.
+     *         -ENOSYS if called out of sequence or on non mmap stream
      */
-    int (*set_observer)(const struct audio_stream_out *stream,
-                               void *observer);
+    int (*stop)(const struct audio_stream_out* stream);
+
     /**
-     * Get the physical address of the buffer allocated in the
-     * driver
+     * Called by the framework to retrieve information on the mmap buffer used for audio
+     * samples transfer.
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] min_size_frames minimum buffer size requested. The actual buffer
+     *        size returned in struct audio_mmap_buffer_info can be larger.
+     * \param[out] info address at which the mmap buffer information should be returned.
+     *
+     * \return 0 if the buffer was allocated.
+     *         -ENODEV in case of initialization error
+     *         -EINVAL if the requested buffer size is too large
+     *         -ENOSYS if called out of sequence (e.g. buffer already allocated)
      */
-    int (*get_buffer_info) (const struct audio_stream_out *stream,
-                                struct buf_info **buf);
+    int (*create_mmap_buffer)(const struct audio_stream_out *stream,
+                              int32_t min_size_frames,
+                              struct audio_mmap_buffer_info *info);
+
     /**
-     * Check if next buffer is available. Waits until next buffer is
-     * available
+     * Called by the framework to read current read/write position in the mmap buffer
+     * with associated time stamp.
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \param[out] position address at which the mmap read/write position should be returned.
+     *
+     * \return 0 if the position is successfully returned.
+     *         -ENODATA if the position cannot be retrieved
+     *         -ENOSYS if called before create_mmap_buffer()
      */
-    int (*is_buffer_available) (const struct audio_stream_out *stream,
-                                     int *isAvail);
-#endif
+    int (*get_mmap_position)(const struct audio_stream_out *stream,
+                             struct audio_mmap_position *position);
+
+    /**
+     * Called when the metadata of the stream's source has been changed.
+     * @param source_metadata Description of the audio that is played by the clients.
+     */
+    void (*update_source_metadata)(struct audio_stream_out *stream,
+                                   const struct source_metadata* source_metadata);
+
+    /**
+     * Set the callback function for notifying events for an output stream.
+     */
+    int (*set_event_callback)(struct audio_stream_out *stream,
+                              stream_event_callback_t callback,
+                              void *cookie);
 };
 typedef struct audio_stream_out audio_stream_out_t;
 
@@ -509,6 +469,137 @@ struct audio_stream_in {
      * Unit: the number of input audio frames
      */
     uint32_t (*get_input_frames_lost)(struct audio_stream_in *stream);
+
+    /**
+     * Return a recent count of the number of audio frames received and
+     * the clock time associated with that frame count.
+     *
+     * frames is the total frame count received. This should be as early in
+     *     the capture pipeline as possible. In general,
+     *     frames should be non-negative and should not go "backwards".
+     *
+     * time is the clock MONOTONIC time when frames was measured. In general,
+     *     time should be a positive quantity and should not go "backwards".
+     *
+     * The status returned is 0 on success, -ENOSYS if the device is not
+     * ready/available, or -EINVAL if the arguments are null or otherwise invalid.
+     */
+    int (*get_capture_position)(const struct audio_stream_in *stream,
+                                int64_t *frames, int64_t *time);
+
+    /**
+     * Called by the framework to start a stream operating in mmap mode.
+     * create_mmap_buffer must be called before calling start()
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \return 0 in case off success.
+     *         -ENOSYS if called out of sequence or on non mmap stream
+     */
+    int (*start)(const struct audio_stream_in* stream);
+
+    /**
+     * Called by the framework to stop a stream operating in mmap mode.
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \return 0 in case of success.
+     *         -ENOSYS if called out of sequence or on non mmap stream
+     */
+    int (*stop)(const struct audio_stream_in* stream);
+
+    /**
+     * Called by the framework to retrieve information on the mmap buffer used for audio
+     * samples transfer.
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] min_size_frames minimum buffer size requested. The actual buffer
+     *        size returned in struct audio_mmap_buffer_info can be larger.
+     * \param[out] info address at which the mmap buffer information should be returned.
+     *
+     * \return 0 if the buffer was allocated.
+     *         -ENODEV in case of initialization error
+     *         -EINVAL if the requested buffer size is too large
+     *         -ENOSYS if called out of sequence (e.g. buffer already allocated)
+     */
+    int (*create_mmap_buffer)(const struct audio_stream_in *stream,
+                              int32_t min_size_frames,
+                              struct audio_mmap_buffer_info *info);
+
+    /**
+     * Called by the framework to read current read/write position in the mmap buffer
+     * with associated time stamp.
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \param[out] position address at which the mmap read/write position should be returned.
+     *
+     * \return 0 if the position is successfully returned.
+     *         -ENODATA if the position cannot be retreived
+     *         -ENOSYS if called before mmap_read_position()
+     */
+    int (*get_mmap_position)(const struct audio_stream_in *stream,
+                             struct audio_mmap_position *position);
+
+    /**
+     * Called by the framework to read active microphones
+     *
+     * \param[in] stream the stream object.
+     * \param[out] mic_array Pointer to first element on array with microphone info
+     * \param[out] mic_count When called, this holds the value of the max number of elements
+     *                       allowed in the mic_array. The actual number of elements written
+     *                       is returned here.
+     *                       if mic_count is passed as zero, mic_array will not be populated,
+     *                       and mic_count will return the actual number of active microphones.
+     *
+     * \return 0 if the microphone array is successfully filled.
+     *         -ENOSYS if there is an error filling the data
+     */
+    int (*get_active_microphones)(const struct audio_stream_in *stream,
+                                  struct audio_microphone_characteristic_t *mic_array,
+                                  size_t *mic_count);
+
+    /**
+     * Called by the framework to instruct the HAL to optimize the capture stream in the
+     * specified direction.
+     *
+     * \param[in] stream    the stream object.
+     * \param[in] direction The direction constant (from audio-base.h)
+     *   MIC_DIRECTION_UNSPECIFIED  Don't do any directionality processing of the
+     *      activated microphone(s).
+     *   MIC_DIRECTION_FRONT        Optimize capture for audio coming from the screen-side
+     *      of the device.
+     *   MIC_DIRECTION_BACK         Optimize capture for audio coming from the side of the
+     *      device opposite the screen.
+     *   MIC_DIRECTION_EXTERNAL     Optimize capture for audio coming from an off-device
+     *      microphone.
+     * \return OK if the call is successful, an error code otherwise.
+     */
+    int (*set_microphone_direction)(const struct audio_stream_in *stream,
+                                    audio_microphone_direction_t direction);
+
+    /**
+     * Called by the framework to specify to the HAL the desired zoom factor for the selected
+     * microphone(s).
+     *
+     * \param[in] stream    the stream object.
+     * \param[in] zoom      the zoom factor.
+     * \return OK if the call is successful, an error code otherwise.
+     */
+    int (*set_microphone_field_dimension)(const struct audio_stream_in *stream,
+                                          float zoom);
+
+    /**
+     * Called when the metadata of the stream's sink has been changed.
+     * @param sink_metadata Description of the audio that is recorded by the clients.
+     */
+    void (*update_sink_metadata)(struct audio_stream_in *stream,
+                                 const struct sink_metadata* sink_metadata);
 };
 typedef struct audio_stream_in audio_stream_in_t;
 
@@ -523,8 +614,7 @@ static inline size_t audio_stream_frame_size(const struct audio_stream *s)
     size_t chan_samp_sz;
     audio_format_t format = s->get_format(s);
 
-    if (audio_is_linear_pcm(format) &&
-            format != AUDIO_FORMAT_PCM_8_24_BIT) {
+    if (audio_has_proportional_frames(format)) {
         chan_samp_sz = audio_bytes_per_sample(format);
         return popcount(s->get_channels(s)) * chan_samp_sz;
     }
@@ -540,7 +630,7 @@ static inline size_t audio_stream_out_frame_size(const struct audio_stream_out *
     size_t chan_samp_sz;
     audio_format_t format = s->common.get_format(&s->common);
 
-    if (audio_is_linear_pcm(format)) {
+    if (audio_has_proportional_frames(format)) {
         chan_samp_sz = audio_bytes_per_sample(format);
         return audio_channel_count_from_out_mask(s->common.get_channels(&s->common)) * chan_samp_sz;
     }
@@ -556,7 +646,7 @@ static inline size_t audio_stream_in_frame_size(const struct audio_stream_in *s)
     size_t chan_samp_sz;
     audio_format_t format = s->common.get_format(&s->common);
 
-    if (audio_is_linear_pcm(format)) {
+    if (audio_has_proportional_frames(format)) {
         chan_samp_sz = audio_bytes_per_sample(format);
         return audio_channel_count_from_in_mask(s->common.get_channels(&s->common)) * chan_samp_sz;
     }
@@ -682,6 +772,25 @@ struct audio_hw_device {
     void (*close_input_stream)(struct audio_hw_device *dev,
                                struct audio_stream_in *stream_in);
 
+    /**
+     * Called by the framework to read available microphones characteristics.
+     *
+     * \param[in] dev the hw_device object.
+     * \param[out] mic_array Pointer to first element on array with microphone info
+     * \param[out] mic_count When called, this holds the value of the max number of elements
+     *                       allowed in the mic_array. The actual number of elements written
+     *                       is returned here.
+     *                       if mic_count is passed as zero, mic_array will not be populated,
+     *                       and mic_count will return the actual number of microphones in the
+     *                       system.
+     *
+     * \return 0 if the microphone array is successfully filled.
+     *         -ENOSYS if there is an error filling the data
+     */
+    int (*get_microphones)(const struct audio_hw_device *dev,
+                           struct audio_microphone_characteristic_t *mic_array,
+                           size_t *mic_count);
+
     /** This method dumps the state of the audio hardware */
     int (*dump)(const struct audio_hw_device *dev, int fd);
 
@@ -731,28 +840,31 @@ struct audio_hw_device {
     int (*set_audio_port_config)(struct audio_hw_device *dev,
                          const struct audio_port_config *config);
 
-#ifdef AUDIO_LISTEN_ENABLED
-    /** This method creates the listen session and returns handle */
-    int (*open_listen_session)(struct audio_hw_device *dev,
-                              listen_open_params_t *params,
-                              struct listen_session** handle);
-
-    /** This method closes the listen session  */
-    int (*close_listen_session)(struct audio_hw_device *dev,
-                                struct listen_session* handle);
-
-    /** This method sets the mad observer callback  */
-    int (*set_mad_observer)(struct audio_hw_device *dev,
-                            listen_callback_t cb_func);
+    /**
+     * Applies an audio effect to an audio device.
+     *
+     * @param dev the audio HAL device context.
+     * @param device identifies the sink or source device the effect must be applied to.
+     *               "device" is the audio_port_handle_t indicated for the device when
+     *               the audio patch connecting that device was created.
+     * @param effect effect interface handle corresponding to the effect being added.
+     * @return retval operation completion status.
+     */
+    int (*add_device_effect)(struct audio_hw_device *dev,
+                        audio_port_handle_t device, effect_handle_t effect);
 
     /**
-     *   This method is used for setting listen hal specfic parameters.
-     *  If multiple paramets are set in one call and setting any one of them
-     *  fails it will return failure.
+     * Stops applying an audio effect to an audio device.
+     *
+     * @param dev the audio HAL device context.
+     * @param device identifies the sink or source device this effect was applied to.
+     *               "device" is the audio_port_handle_t indicated for the device when
+     *               the audio patch is created.
+     * @param effect effect interface handle corresponding to the effect being removed.
+     * @return retval operation completion status.
      */
-    int (*listen_set_parameters)(struct audio_hw_device *dev,
-                                 const char *kv_pairs);
-#endif
+    int (*remove_device_effect)(struct audio_hw_device *dev,
+                        audio_port_handle_t device, effect_handle_t effect);
 };
 typedef struct audio_hw_device audio_hw_device_t;
 
@@ -762,7 +874,7 @@ static inline int audio_hw_device_open(const struct hw_module_t* module,
                                        struct audio_hw_device** device)
 {
     return module->methods->open(module, AUDIO_HARDWARE_INTERFACE,
-                                 (struct hw_device_t**)device);
+                                 TO_HW_DEVICE_T_OPEN(device));
 }
 
 static inline int audio_hw_device_close(struct audio_hw_device* device)
@@ -770,18 +882,7 @@ static inline int audio_hw_device_close(struct audio_hw_device* device)
     return device->common.close(&device->common);
 }
 
-#ifdef QCOM_DIRECTTRACK
-#ifdef __cplusplus
-/**
- *Observer class to post the Events from HAL to Flinger
-*/
-class AudioEventObserver {
-public:
-    virtual ~AudioEventObserver() {}
-    virtual void postEOS(int64_t delayUs) = 0;
-};
-#endif
-#endif
+
 __END_DECLS
 
 #endif  // ANDROID_AUDIO_INTERFACE_H

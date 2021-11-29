@@ -37,42 +37,6 @@ __BEGIN_DECLS
 
 /*****************************************************************************/
 
-/**
- * The id of this module
- */
-#define HWC_HARDWARE_MODULE_ID "hwcomposer"
-
-/**
- * Name of the sensors device to open
- */
-#define HWC_HARDWARE_COMPOSER   "composer"
-
-typedef struct hwc_rect {
-    int left;
-    int top;
-    int right;
-    int bottom;
-} hwc_rect_t;
-
-typedef struct hwc_frect {
-    float left;
-    float top;
-    float right;
-    float bottom;
-} hwc_frect_t;
-
-typedef struct hwc_region {
-    size_t numRects;
-    hwc_rect_t const* rects;
-} hwc_region_t;
-
-typedef struct hwc_color {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-    uint8_t a;
-} hwc_color_t;
-
 typedef struct hwc_layer_1 {
     /*
      * compositionType is used to specify this layer's type and is set by either
@@ -215,7 +179,6 @@ typedef struct hwc_layer_1 {
              */
             hwc_region_t visibleRegionScreen;
 
-
             /* Sync fence object that will be signaled when the buffer's
              * contents are available. May be -1 if the contents are already
              * available. This field is only valid during set(), and should be
@@ -300,8 +263,29 @@ typedef struct hwc_layer_1 {
              */
             uint8_t planeAlpha;
 
-            /* reserved for future use */
+            /* Pad to 32 bits */
             uint8_t _pad[3];
+
+            /*
+             * Availability: HWC_DEVICE_API_VERSION_1_5
+             *
+             * This defines the region of the source buffer that has been
+             * modified since the last frame.
+             *
+             * If surfaceDamage.numRects > 0, then it may be assumed that any
+             * portion of the source buffer not covered by one of the rects has
+             * not been modified this frame. If surfaceDamage.numRects == 0,
+             * then the whole source buffer must be treated as if it had been
+             * modified.
+             *
+             * If the layer's contents are not modified relative to the prior
+             * prepare/set cycle, surfaceDamage will contain exactly one empty
+             * rect ([0, 0, 0, 0]).
+             *
+             * The damage rects are relative to the pre-transformed buffer, and
+             * their origin is the top-left corner.
+             */
+            hwc_region_t surfaceDamage;
         };
     };
 
@@ -310,13 +294,13 @@ typedef struct hwc_layer_1 {
      * For 64-bit mode, this struct is 120 bytes (and 8-byte aligned), and needs
      * to be padded as such to maintain binary compatibility.
      */
-    uint8_t reserved[120 - 96];
+    uint8_t reserved[120 - 112];
 #else
     /*
      * For 32-bit mode, this struct is 96 bytes, and needs to be padded as such
      * to maintain binary compatibility.
      */
-    uint8_t reserved[96 - 76];
+    uint8_t reserved[96 - 84];
 #endif
 
 } hwc_layer_1_t;
@@ -497,6 +481,7 @@ typedef struct hwc_module {
     struct hw_module_t common;
 } hwc_module_t;
 
+#define HWC_ERROR (-1)
 typedef struct hwc_composer_device_1 {
     /**
      * Common methods of the hardware composer device.  This *must* be the first member of
@@ -730,9 +715,9 @@ typedef struct hwc_composer_device_1 {
      * (*getActiveConfig)() returns the index of the configuration that is
      * currently active on the connected display. The index is relative to
      * the list of configuration handles returned by getDisplayConfigs. If there
-     * is no active configuration, -1 shall be returned.
+     * is no active configuration, HWC_ERROR shall be returned.
      *
-     * Returns the configuration index on success or -1 on error.
+     * Returns the configuration index on success or HWC_ERROR on error.
      *
      * This field is REQUIRED for HWC_DEVICE_API_VERSION_1_4 and later.
      * It shall be NULL for previous versions.
@@ -799,7 +784,7 @@ typedef struct hwc_composer_device_1 {
 static inline int hwc_open_1(const struct hw_module_t* module,
         hwc_composer_device_1_t** device) {
     return module->methods->open(module,
-            HWC_HARDWARE_COMPOSER, (struct hw_device_t**)device);
+            HWC_HARDWARE_COMPOSER, TO_HW_DEVICE_T_OPEN(device));
 }
 
 static inline int hwc_close_1(hwc_composer_device_1_t* device) {

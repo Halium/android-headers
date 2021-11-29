@@ -36,24 +36,39 @@ typedef enum {
 #define RECOGNITION_MODE_USER_IDENTIFICATION 0x2 /* trigger only if one user in model identified */
 #define RECOGNITION_MODE_USER_AUTHENTICATION 0x4 /* trigger only if one user in mode
                                                     authenticated */
+#define RECOGNITION_MODE_GENERIC_TRIGGER 0x8     /* generic sound trigger */
+
 #define RECOGNITION_STATUS_SUCCESS 0
 #define RECOGNITION_STATUS_ABORT 1
 #define RECOGNITION_STATUS_FAILURE 2
+#define RECOGNITION_STATUS_GET_STATE_RESPONSE 3  /* Indicates that the recognition event is in
+                                                    response to a state request and was not
+                                                    triggered by a real DSP recognition */
 
 #define SOUND_MODEL_STATUS_UPDATED 0
 
 typedef enum {
     SOUND_MODEL_TYPE_UNKNOWN = -1,    /* use for unspecified sound model type */
-    SOUND_MODEL_TYPE_KEYPHRASE = 0    /* use for key phrase sound models */
+    SOUND_MODEL_TYPE_KEYPHRASE = 0,    /* use for key phrase sound models */
+    SOUND_MODEL_TYPE_GENERIC = 1      /* use for all models other than keyphrase */
 } sound_trigger_sound_model_type_t;
 
-typedef struct sound_trigger_uuid_s {
-    unsigned int   timeLow;
-    unsigned short timeMid;
-    unsigned short timeHiAndVersion;
-    unsigned short clockSeq;
-    unsigned char  node[6];
-} sound_trigger_uuid_t;
+/**
+ * AudioCapabilities supported by the implemented HAL
+ * driver.
+ */
+typedef enum AudioCapabilities : uint32_t {
+    /**
+     * If set the underlying module supports AEC.
+     */
+    SOUND_TRIGGER_ECHO_CANCELLATION = 1 << 0,
+    /**
+     * If set, the underlying module supports noise suppression.
+     */
+    SOUND_TRIGGER_NOISE_SUPPRESSION = 1 << 1,
+} sound_trigger_audio_capabilities_t;
+
+typedef audio_uuid_t sound_trigger_uuid_t;
 
 /*
  * sound trigger implementation descriptor read by the framework via get_properties().
@@ -82,6 +97,51 @@ struct sound_trigger_properties {
                                                    with TDB silence/sound/speech ratio */
 };
 
+/*
+ * Properties header used to describe the version and size of extended properties.
+ * A header struct can be passed as a polymorphic struct (see usage below).
+ *
+ * Ex. cast to access properties:
+ * if (header->version >= SOUND_TRIGGER_DEVICE_API_VERSION_1_3) {
+ *   sound_trigger_properties_extended_1_3 *properties =
+ *       (sound_trigger_properties_extended_1_3*)header;
+ * }
+ *
+ * Ex. copy based on total size:
+ * void* buffer = malloc(header->size);
+ * memcpy(buffer, header, header->size);
+ *
+ * Each new version update must append to the previous one. This allows higher
+ * versioned extended properties structs to be cast down to previous versions.
+ */
+struct sound_trigger_properties_header {
+    uint32_t version;
+    size_t size;
+};
+
+/*
+ * extended soundtrigger implementation descriptor containing verbose implementation
+ * properties. This is an extension of the base sound_trigger_properties struct.
+ * sound_trigger_properties_extended_1_3.header.version is expected to be
+ * SOUND_TRIGGER_DEVICE_API_VERSION_1_3.
+ */
+struct sound_trigger_properties_extended_1_3 {
+    /** header descriptor defining the struct's version */
+    struct sound_trigger_properties_header header;
+    /** base properties */
+    struct sound_trigger_properties base;
+    /**
+     * String naming the architecture used for running the supported models.
+     * (eg. DSP architecture)
+     */
+    char supported_model_arch[SOUND_TRIGGER_MAX_STRING_LEN];
+    /**
+     * Bit field encoding of the
+     * sound_trigger_audio_capabilities_t supported by the firmware.
+     */
+    uint32_t audio_capabilities;
+};
+
 typedef int sound_trigger_module_handle_t;
 
 struct sound_trigger_module_descriptor {
@@ -92,7 +152,7 @@ struct sound_trigger_module_descriptor {
 typedef int sound_model_handle_t;
 
 /*
- * Generic sound model descriptor. This struct is the header of a larger block passed to
+ * Base sound model descriptor. This struct is the header of a larger block passed to
  * load_sound_model() and containing the binary data of the sound model.
  * Proprietary representation of users in binary data must match information indicated
  * by users field
@@ -131,9 +191,56 @@ struct sound_trigger_phrase_sound_model {
 
 
 /*
- * Generic recognition event sent via recognition callback
+ * Generic sound model, used for all cases except key phrase detection.
  */
-struct sound_trigger_recognition_event {
+struct sound_trigger_generic_sound_model {
+    struct sound_trigger_sound_model common;
+};
+
+/*
+ * Model specific parameters to be used with parameter set and get APIs
+ */
+typedef enum {
+    /*
+     * Controls the sensitivity threshold adjustment factor for a given model.
+     * Negative value corresponds to less sensitive model (high threshold) and
+     * a positive value corresponds to a more sensitive model (low threshold).
+     * Default value is 0.
+     */
+    MODEL_PARAMETER_THRESHOLD_FACTOR = 0,
+
+    /*
+     * Placeholder for invalid model parameter used for returning error or
+     * passing an invalid value.
+     */
+    MODEL_PARAMETER_INVALID = -1,
+} sound_trigger_model_parameter_t;
+
+/**
+ * Model specific support for a given parameter
+ */
+typedef struct {
+    /**
+     * Boolean flag to determine if the parameter is supported by the hardware.
+     * The value of this parameter must be true to consider the start and end
+     * fields to be valid values.
+     */
+    bool is_supported;
+    /**
+     * start of supported value range inclusive
+     */
+    int32_t start;
+    /**
+     * end of supported value range inclusive
+     */
+    int32_t end;
+} sound_trigger_model_parameter_range_t;
+
+/*
+ * Generic recognition event sent via recognition callback
+ * Must be aligned to transmit as raw memory through Binder.
+ */
+struct __attribute__((aligned(8))) sound_trigger_recognition_event {
     int                              status;            /* recognition status e.g.
                                                            RECOGNITION_STATUS_SUCCESS */
     sound_trigger_sound_model_type_t type;              /* event type, same as sound model type.
@@ -190,6 +297,10 @@ struct sound_trigger_phrase_recognition_event {
     struct sound_trigger_phrase_recognition_extra phrase_extras[SOUND_TRIGGER_MAX_PHRASES];
 };
 
+struct sound_trigger_generic_recognition_event {
+    struct sound_trigger_recognition_event common;
+};
+
 /*
  * configuration for sound trigger capture session passed to start_recognition()
  */
@@ -205,6 +316,46 @@ struct sound_trigger_recognition_config {
     unsigned int        data_size;         /* size of opaque capture configuration data */
     unsigned int        data_offset;       /* offset of opaque data start from start of this struct
                                            (e.g sizeof struct sound_trigger_recognition_config) */
+};
+
+/*
+ * Recognition config header used to describe the version and size of extended struct.
+ * A header struct can be passed as a polymorphic struct (see usage below).
+ *
+ * Ex. cast to access properties:
+ * if (header->version >= SOUND_TRIGGER_DEVICE_API_VERSION_1_3) {
+ *   sound_trigger_recognition_config_extended_1_3 *config =
+ *       (sound_trigger_recognition_config_extended_1_3*)header;
+ * }
+ *
+ * Ex. copy based on total size:
+ * void* buffer = malloc(header->size);
+ * memcpy(buffer, header, header->size);
+ *
+ * Each new version update must append to the previous one. This allows higher
+ * versioned extended properties structs to be cast down to previous versions.
+ */
+struct sound_trigger_recognition_config_header {
+    uint32_t version;
+    size_t size;
+};
+
+/*
+ * Configuration for sound trigger capture session.
+ * This is an extension of the base sound_trigger_recognition_config struct.
+ * sound_trigger_recognition_config_extended_1_3.header.version is expected to be
+ * SOUND_TRIGGER_DEVICE_API_VERSION_1_3.
+ */
+struct sound_trigger_recognition_config_extended_1_3 {
+    /** header descriptor defining the struct's version */
+    struct sound_trigger_recognition_config_header header;
+    /** base config */
+    struct sound_trigger_recognition_config base;
+    /**
+     * Bit field encoding of the
+     * sound_trigger_audio_capabilities_t supported by the firmware.
+     */
+    uint32_t audio_capabilities;
 };
 
 /*

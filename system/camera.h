@@ -88,8 +88,10 @@ enum {
     // Notify on autofocus start and stop. This is useful in continuous
     // autofocus - FOCUS_MODE_CONTINUOUS_VIDEO and FOCUS_MODE_CONTINUOUS_PICTURE.
     CAMERA_MSG_FOCUS_MOVE = 0x0800,       // notifyCallback
-    CAMERA_MSG_STATS_DATA = 0x1000,
+    CAMERA_MSG_VENDOR_START = 0x1000,
+    CAMERA_MSG_STATS_DATA = CAMERA_MSG_VENDOR_START,
     CAMERA_MSG_META_DATA = 0x2000,
+    CAMERA_MSG_VENDOR_END = 0x8000,
     CAMERA_MSG_ALL_MSGS = 0xFFFF
 };
 
@@ -167,8 +169,8 @@ enum {
      *
      * When any camera method returns error, the client can use ping command
      * to see if the camera has been taken away by other clients. If the result
-     * is NO_ERROR, it means the camera hardware is not released. If the result
-     * is not NO_ERROR, the camera has been released and the existing client
+     * is OK, it means the camera hardware is not released. If the result
+     * is not OK, the camera has been released and the existing client
      * can silently finish itself or show a dialog.
      */
     CAMERA_CMD_PING = 9,
@@ -185,20 +187,38 @@ enum {
     CAMERA_CMD_SET_VIDEO_BUFFER_COUNT = 10,
 
     /**
+     * Configure an explicit format to use for video recording metadata mode.
+     * This can be used to switch the format from the
+     * default IMPLEMENTATION_DEFINED gralloc format to some other
+     * device-supported format, and the default dataspace from the BT_709 color
+     * space to some other device-supported dataspace. arg1 is the HAL pixel
+     * format, and arg2 is the HAL dataSpace. This command returns
+     * INVALID_OPERATION error if it is sent after video recording is started,
+     * or the command is not supported at all.
+     *
+     * If the gralloc format is set to a format other than
+     * IMPLEMENTATION_DEFINED, then HALv3 devices will use gralloc usage flags
+     * of SW_READ_OFTEN.
+     */
+    CAMERA_CMD_SET_VIDEO_FORMAT = 11,
+
+    CAMERA_CMD_VENDOR_START = 20,
+    /**
      * Commands to enable/disable preview histogram
      *
      * Based on user's input to enable/disable histogram from the camera
      * UI, send the appropriate command to the HAL to turn on/off the histogram
      * stats and start sending the data to the application.
      */
-    CAMERA_CMD_HISTOGRAM_ON     = 11,
-    CAMERA_CMD_HISTOGRAM_OFF     = 12,
-    CAMERA_CMD_HISTOGRAM_SEND_DATA  = 13,
-    CAMERA_CMD_LONGSHOT_ON = 14,
-    CAMERA_CMD_LONGSHOT_OFF = 15,
-    CAMERA_CMD_STOP_LONGSHOT = 16,
-    CAMERA_CMD_METADATA_ON = 100,
-    CAMERA_CMD_METADATA_OFF = 101,
+    CAMERA_CMD_HISTOGRAM_ON = CAMERA_CMD_VENDOR_START,
+    CAMERA_CMD_HISTOGRAM_OFF = CAMERA_CMD_VENDOR_START + 1,
+    CAMERA_CMD_HISTOGRAM_SEND_DATA  = CAMERA_CMD_VENDOR_START + 2,
+    CAMERA_CMD_LONGSHOT_ON = CAMERA_CMD_VENDOR_START + 3,
+    CAMERA_CMD_LONGSHOT_OFF = CAMERA_CMD_VENDOR_START + 4,
+    CAMERA_CMD_STOP_LONGSHOT = CAMERA_CMD_VENDOR_START + 5,
+    CAMERA_CMD_METADATA_ON = CAMERA_CMD_VENDOR_START + 6,
+    CAMERA_CMD_METADATA_OFF = CAMERA_CMD_VENDOR_START + 7,
+    CAMERA_CMD_VENDOR_END = 200,
 };
 
 /** camera fatal errors */
@@ -212,6 +232,15 @@ enum {
      * (except disconnect and sending CAMERA_CMD_PING) after getting this.
      */
     CAMERA_ERROR_RELEASED = 2,
+
+    /**
+     * Camera was released because device policy change or the client application
+     * is going to background. The client should call Camera::disconnect
+     * immediately after getting this notification. Otherwise, the camera will be
+     * released by camera service in a short time. The client should not call any
+     * method (except disconnect and sending CAMERA_CMD_PING) after getting this.
+     */
+    CAMERA_ERROR_DISABLED = 3,
     CAMERA_ERROR_SERVER_DIED = 100
 };
 
@@ -219,7 +248,12 @@ enum {
     /** The facing of the camera is opposite to that of the screen. */
     CAMERA_FACING_BACK = 0,
     /** The facing of the camera is the same as that of the screen. */
-    CAMERA_FACING_FRONT = 1
+    CAMERA_FACING_FRONT = 1,
+    /**
+     * The facing of the camera is not fixed relative to the screen.
+     * The cameras with this facing are external cameras, e.g. USB cameras.
+     */
+    CAMERA_FACING_EXTERNAL = 2
 };
 
 enum {
@@ -279,7 +313,6 @@ typedef struct camera_face {
      * -2000, -2000 if this is not supported.
      */
     int32_t mouth[2];
-#ifdef QCOM_BSP
     int32_t smile_degree;
     int32_t smile_score;
     int32_t blink_detected;
@@ -292,7 +325,6 @@ typedef struct camera_face {
     int32_t top_bottom_gaze;
     int32_t leye_blink;
     int32_t reye_blink;
-#endif
 
 } camera_face_t;
 

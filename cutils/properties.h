@@ -43,7 +43,7 @@ extern "C" {
 ** If the property read fails or returns an empty value, the default
 ** value is used (if nonnull).
 */
-int property_get(const char *key, char *value, const char *default_value);
+int property_get(const char* key, char* value, const char* default_value);
 
 /* property_get_bool: returns the value of key coerced into a
 ** boolean. If the property is not set, then the default value is returned.
@@ -106,14 +106,28 @@ int32_t property_get_int32(const char *key, int32_t default_value);
 /* property_set: returns 0 on success, < 0 on failure
 */
 int property_set(const char *key, const char *value);
-    
-int property_list(void (*propfn)(const char *key, const char *value, void *cookie), void *cookie);    
+
+int property_list(void (*propfn)(const char *key, const char *value, void *cookie), void *cookie);
 
 #if defined(__BIONIC_FORTIFY)
+#define __property_get_err_str "property_get() called with too small of a buffer"
+
+#if defined(__clang__)
+
+/* Some projects use -Weverything; diagnose_if is clang-specific. */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgcc-compat"
+int property_get(const char* key, char* value, const char* default_value)
+    __clang_error_if(__bos(value) != __BIONIC_FORTIFY_UNKNOWN_SIZE &&
+                         __bos(value) < PROPERTY_VALUE_MAX,
+                     __property_get_err_str);
+#pragma clang diagnostic pop
+
+#else /* defined(__clang__) */
 
 extern int __property_get_real(const char *, char *, const char *)
     __asm__(__USER_LABEL_PREFIX__ "property_get");
-__errordecl(__property_get_too_small_error, "property_get() called with too small of a buffer");
+__errordecl(__property_get_too_small_error, __property_get_err_str);
 
 __BIONIC_FORTIFY_INLINE
 int property_get(const char *key, char *value, const char *default_value) {
@@ -124,23 +138,10 @@ int property_get(const char *key, char *value, const char *default_value) {
     return __property_get_real(key, value, default_value);
 }
 
-#endif
+#endif /* defined(__clang__) */
 
-#ifdef HAVE_SYSTEM_PROPERTY_SERVER
-/*
- * We have an external property server instead of built-in libc support.
- * Used by the simulator.
- */
-#define SYSTEM_PROPERTY_PIPE_NAME       "/tmp/android-sysprop"
-
-enum {
-    kSystemPropertyUnknown = 0,
-    kSystemPropertyGet,
-    kSystemPropertySet,
-    kSystemPropertyList
-};
-#endif /*HAVE_SYSTEM_PROPERTY_SERVER*/
-
+#undef __property_get_err_str
+#endif /* defined(__BIONIC_FORTIFY) */
 
 #ifdef __cplusplus
 }

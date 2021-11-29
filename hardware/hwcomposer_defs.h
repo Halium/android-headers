@@ -26,7 +26,7 @@
 
 __BEGIN_DECLS
 
-/*****************************************************************************/
+/* Shared by HWC1 and HWC2 */
 
 #define HWC_HEADER_VERSION          1
 
@@ -37,6 +37,110 @@ __BEGIN_DECLS
 #define HWC_DEVICE_API_VERSION_1_2  HARDWARE_DEVICE_API_VERSION_2(1, 2, HWC_HEADER_VERSION)
 #define HWC_DEVICE_API_VERSION_1_3  HARDWARE_DEVICE_API_VERSION_2(1, 3, HWC_HEADER_VERSION)
 #define HWC_DEVICE_API_VERSION_1_4  HARDWARE_DEVICE_API_VERSION_2(1, 4, HWC_HEADER_VERSION)
+#define HWC_DEVICE_API_VERSION_1_5  HARDWARE_DEVICE_API_VERSION_2(1, 5, HWC_HEADER_VERSION)
+
+#define HWC_DEVICE_API_VERSION_2_0  HARDWARE_DEVICE_API_VERSION_2(2, 0, HWC_HEADER_VERSION)
+
+/**
+ * The id of this module
+ */
+#define HWC_HARDWARE_MODULE_ID "hwcomposer"
+
+/**
+ * Name of the sensors device to open
+ */
+#define HWC_HARDWARE_COMPOSER "composer"
+
+typedef struct hwc_color {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+    uint8_t a;
+} hwc_color_t;
+
+typedef struct hwc_float_color {
+    float r;
+    float g;
+    float b;
+    float a;
+} hwc_float_color_t;
+
+typedef struct hwc_frect {
+    float left;
+    float top;
+    float right;
+    float bottom;
+} hwc_frect_t;
+
+typedef struct hwc_rect {
+    int left;
+    int top;
+    int right;
+    int bottom;
+} hwc_rect_t;
+
+typedef struct hwc_region {
+    size_t numRects;
+    hwc_rect_t const* rects;
+} hwc_region_t;
+
+/*
+ * hwc_layer_t::transform values
+ */
+typedef enum {
+    /* flip source image horizontally */
+    HWC_TRANSFORM_FLIP_H = HAL_TRANSFORM_FLIP_H,
+    /* flip source image vertically */
+    HWC_TRANSFORM_FLIP_V = HAL_TRANSFORM_FLIP_V,
+    /* rotate source image 90 degrees clock-wise */
+    HWC_TRANSFORM_ROT_90 = HAL_TRANSFORM_ROT_90,
+    /* rotate source image 180 degrees */
+    HWC_TRANSFORM_ROT_180 = HAL_TRANSFORM_ROT_180,
+    /* rotate source image 270 degrees clock-wise */
+    HWC_TRANSFORM_ROT_270 = HAL_TRANSFORM_ROT_270,
+    /* flip source image horizontally, the rotate 90 degrees clock-wise */
+    HWC_TRANSFORM_FLIP_H_ROT_90 = HAL_TRANSFORM_FLIP_H | HAL_TRANSFORM_ROT_90,
+    /* flip source image vertically, the rotate 90 degrees clock-wise */
+    HWC_TRANSFORM_FLIP_V_ROT_90 = HAL_TRANSFORM_FLIP_V | HAL_TRANSFORM_ROT_90,
+} hwc_transform_t;
+
+/* Constraints for changing vsync period */
+typedef struct hwc_vsync_period_change_constraints {
+    /* Time in CLOCK_MONOTONIC after which the vsync period may change
+     * (i.e., the vsync period must not change before this time). */
+    int64_t desiredTimeNanos;
+    /*
+     * If true, requires that the vsync period change must happen seamlessly without
+     * a noticeable visual artifact. */
+    uint8_t seamlessRequired;
+} hwc_vsync_period_change_constraints_t;
+
+/* Timing for a vsync period change. */
+typedef struct hwc_vsync_period_change_timeline {
+    /* The time in CLOCK_MONOTONIC when the new display will start to refresh at
+     * the new vsync period. */
+    int64_t newVsyncAppliedTimeNanos;
+
+    /* Set to true if the client is required to sent a frame to be displayed before
+     * the change can take place. */
+    uint8_t refreshRequired;
+
+    /* The time in CLOCK_MONOTONIC when the client is expected to send the new frame.
+     * Should be ignored if refreshRequired is false. */
+    int64_t refreshTimeNanos;
+} hwc_vsync_period_change_timeline_t;
+
+typedef struct hwc_client_target_property {
+    // The pixel format of client target requested by hardware composer.
+    int32_t pixelFormat;
+    // The dataspace of the client target requested by hardware composer.
+    int32_t dataspace;
+} hwc_client_target_property_t;
+
+/*******************************************************************************
+ * Beyond this point are things only used by HWC1, which should be ignored when
+ * implementing a HWC2 device
+ ******************************************************************************/
 
 enum {
     /* hwc_composer_device_t::set failed in EGL */
@@ -72,9 +176,9 @@ enum {
  */
 enum {
     /*
-     * HWC_SKIP_LAYER is set by SurfaceFlnger to indicate that the HAL
+     * HWC_SKIP_LAYER is set by SurfaceFlinger to indicate that the HAL
      * shall not consider this layer for composition as it will be handled
-     * by SurfaceFlinger (just as if compositionType was set to HWC_OVERLAY).
+     * by SurfaceFlinger (just as if compositionType was set to HWC_FRAMEBUFFER).
      */
     HWC_SKIP_LAYER = 0x00000001,
 
@@ -86,14 +190,7 @@ enum {
      * composition type of this layer, then the hwcomposer will allow async
      * position updates to this layer via setCursorPositionAsync().
      */
-    HWC_IS_CURSOR_LAYER = 0x00000002,
-
-    /*
-     * HWC_SCREENSHOT_ANIMATOR_LAYER is set by surfaceflinger to indicate that this
-     * layer is a screenshot animating layer.  HWC uses this info to disable rotation
-     * animation on External Display
-     */
-    HWC_SCREENSHOT_ANIMATOR_LAYER = 0x00000004
+    HWC_IS_CURSOR_LAYER = 0x00000002
 };
 
 /*
@@ -122,11 +219,8 @@ enum {
        cursor overlay hardware. hwcomposer will also all async position updates
        of this layer outside of the normal prepare()/set() loop. Added in
        HWC_DEVICE_API_VERSION_1_4. */
-    HWC_CURSOR_OVERLAY =  5,
-
-    /* this layer will be handled in the HWC, using a blit engine */
-    HWC_BLIT = 6,
-};
+    HWC_CURSOR_OVERLAY =  5
+ };
 /*
  * hwc_layer_t::blending values
  */
@@ -139,22 +233,6 @@ enum {
 
     /* SRC_ALPHA / ONE_MINUS_SRC_ALPHA */
     HWC_BLENDING_COVERAGE = 0x0405
-};
-
-/*
- * hwc_layer_t::transform values
- */
-enum {
-    /* flip source image horizontally */
-    HWC_TRANSFORM_FLIP_H = HAL_TRANSFORM_FLIP_H,
-    /* flip source image vertically */
-    HWC_TRANSFORM_FLIP_V = HAL_TRANSFORM_FLIP_V,
-    /* rotate source image 90 degrees clock-wise */
-    HWC_TRANSFORM_ROT_90 = HAL_TRANSFORM_ROT_90,
-    /* rotate source image 180 degrees */
-    HWC_TRANSFORM_ROT_180 = HAL_TRANSFORM_ROT_180,
-    /* rotate source image 270 degrees clock-wise */
-    HWC_TRANSFORM_ROT_270 = HAL_TRANSFORM_ROT_270,
 };
 
 /* attributes queriable with query() */
@@ -201,27 +279,39 @@ enum {
      */
     HWC_DISPLAY_DPI_X                       = 4,
     HWC_DISPLAY_DPI_Y                       = 5,
-    /* Indicates if the display is secure
-     * For HDMI/WFD if the sink supports HDCP, it will be true
-     * Primary panel is always considered secure
-     */
-    HWC_DISPLAY_SECURE                      = 6,
+
+    /* Indicates which of the vendor-defined color transforms is provided by
+     * this configuration. */
+    HWC_DISPLAY_COLOR_TRANSFORM             = 6,
+
+    /* The configuration group this config is associated to. The groups are defined
+     * to mark certain configs as similar and changing configs within a certain group
+     * may be done seamlessly in some conditions. setActiveConfigWithConstraints. */
+    HWC_DISPLAY_CONFIG_GROUP                = 7,
 };
 
 /* Allowed events for hwc_methods::eventControl() */
 enum {
-    HWC_EVENT_VSYNC     = 0,
-    HWC_EVENT_ORIENTATION
+    HWC_EVENT_VSYNC     = 0
 };
 
 /* Display types and associated mask bits. */
 enum {
     HWC_DISPLAY_PRIMARY     = 0,
     HWC_DISPLAY_EXTERNAL    = 1,    // HDMI, DP, etc.
-    HWC_DISPLAY_VIRTUAL     = 2,
 
-    HWC_NUM_PHYSICAL_DISPLAY_TYPES = 2,
-    HWC_NUM_DISPLAY_TYPES          = 3,
+    HWC_DISPLAY_EXTERNAL_2  = 2,
+    HWC_DISPLAY_EXTERNAL_3  = 3,
+    HWC_DISPLAY_EXTERNAL_4  = 4,
+
+    HWC_DISPLAY_BUILTIN_2   = 5,
+    HWC_DISPLAY_BUILTIN_3   = 6,
+    HWC_DISPLAY_BUILTIN_4   = 7,
+
+    HWC_DISPLAY_VIRTUAL     = 8,
+
+    HWC_NUM_PHYSICAL_DISPLAY_TYPES = 8,
+    HWC_NUM_DISPLAY_TYPES          = 9,
 };
 
 enum {
