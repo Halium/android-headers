@@ -9,6 +9,6 @@ install:
 	rm -f $(DESTDIR)/$(INCLUDEDIR)/Makefile
 	rm -f $(DESTDIR)/$(INCLUDEDIR)/android-headers.pc.in
 	mkdir -p $(DESTDIR)/$(PREFIX)/lib/pkgconfig
-	cp android-headers.pc $(DESTDIR)/$(PKGCONFIGDIR)
+	cp android-headers.pc.in $(DESTDIR)/$(PKGCONFIGDIR)/android-headers.pc
 	sed -i -e s:prefix=/usr:prefix=$(PREFIX):g $(DESTDIR)/$(PKGCONFIGDIR)/android-headers.pc
     
