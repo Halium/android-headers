@@ -52,10 +52,14 @@ static inline std::vector<std::string> audio_get_configuration_paths() {
     return paths;
 }
 
+static inline bool audio_is_readable_configuration_file(const char* filePath) {
+    return (access(filePath, R_OK) == 0);
+}
+
 static inline std::string audio_find_readable_configuration_file(const char* fileName) {
     for (const auto& path : audio_get_configuration_paths()) {
         std::string tryPath = path + "/" + fileName;
-        if (access(tryPath.c_str(), R_OK) == 0) {
+        if (audio_is_readable_configuration_file(tryPath.c_str())) {
             return tryPath;
         }
     }
@@ -102,6 +106,9 @@ static inline std::string audio_get_audio_policy_config_file() {
     } else if (property_get_bool("persist.bluetooth.bluetooth_audio_hal.disabled", false)) {
         audioPolicyXmlConfigFile = audio_find_readable_configuration_file(
                 apmBluetoothLegacyHalXmlConfigFileName);
+    } else {
+        audioPolicyXmlConfigFile = audio_find_readable_configuration_file(
+                apmA2dpOffloadDisabledXmlConfigFileName);
     }
     return audioPolicyXmlConfigFile.empty() ?
             audio_find_readable_configuration_file(apmXmlConfigFileName) : audioPolicyXmlConfigFile;

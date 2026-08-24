@@ -235,8 +235,8 @@ enum {
     NATIVE_WINDOW_ENABLE_FRAME_TIMESTAMPS         = 25,
     NATIVE_WINDOW_GET_COMPOSITOR_TIMING           = 26,
     NATIVE_WINDOW_GET_FRAME_TIMESTAMPS            = 27,
-    NATIVE_WINDOW_GET_WIDE_COLOR_SUPPORT          = 28,
-    NATIVE_WINDOW_GET_HDR_SUPPORT                 = 29,
+    /* 28, removed: NATIVE_WINDOW_GET_WIDE_COLOR_SUPPORT */
+    /* 29, removed: NATIVE_WINDOW_GET_HDR_SUPPORT */
     NATIVE_WINDOW_SET_USAGE64                     = ANATIVEWINDOW_PERFORM_SET_USAGE64,
     NATIVE_WINDOW_GET_CONSUMER_USAGE64            = 31,
     NATIVE_WINDOW_SET_BUFFERS_SMPTE2086_METADATA  = 32,
@@ -988,15 +988,34 @@ static inline int native_window_get_frame_timestamps(
             outDequeueReadyTime, outReleaseTime);
 }
 
-static inline int native_window_get_wide_color_support(
-    struct ANativeWindow* window, bool* outSupport) {
-    return window->perform(window, NATIVE_WINDOW_GET_WIDE_COLOR_SUPPORT,
-            outSupport);
+/* deprecated. Always returns 0 and outSupport holds true. Don't call. */
+static inline int native_window_get_wide_color_support (
+    struct ANativeWindow* window __UNUSED, bool* outSupport) __deprecated;
+
+/*
+   Deprecated(b/242763577): to be removed, this method should not be used
+   Surface support should not be tied to the display
+   Return true since most displays should have this support
+*/
+static inline int native_window_get_wide_color_support (
+    struct ANativeWindow* window __UNUSED, bool* outSupport) {
+    *outSupport = true;
+    return 0;
 }
 
-static inline int native_window_get_hdr_support(struct ANativeWindow* window,
+/* deprecated. Always returns 0 and outSupport holds true. Don't call. */
+static inline int native_window_get_hdr_support(struct ANativeWindow* window __UNUSED,
+                                                bool* outSupport) __deprecated;
+
+/*
+   Deprecated(b/242763577): to be removed, this method should not be used
+   Surface support should not be tied to the display
+   Return true since most displays should have this support
+*/
+static inline int native_window_get_hdr_support(struct ANativeWindow* window __UNUSED,
                                                 bool* outSupport) {
-    return window->perform(window, NATIVE_WINDOW_GET_HDR_SUPPORT, outSupport);
+    *outSupport = true;
+    return 0;
 }
 
 static inline int native_window_get_consumer_usage(struct ANativeWindow* window,
@@ -1034,6 +1053,98 @@ enum {
      * This surface is ignored while choosing the refresh rate.
      */
     ANATIVEWINDOW_FRAME_RATE_NO_VOTE,
+
+    /**
+     * This surface will vote for the minimum refresh rate.
+     */
+    ANATIVEWINDOW_FRAME_RATE_MIN,
+
+    /**
+     * The surface requests a frame rate that is greater than or equal to `frameRate`.
+     */
+    ANATIVEWINDOW_FRAME_RATE_GTE
+};
+
+/*
+ * Frame rate category values that can be used in Transaction::setFrameRateCategory.
+ */
+enum {
+    /**
+     * Default value. This value can also be set to return to default behavior, such as layers
+     * without animations.
+     */
+    ANATIVEWINDOW_FRAME_RATE_CATEGORY_DEFAULT = 0,
+
+    /**
+     * The layer will explicitly not influence the frame rate.
+     * This may indicate a frame rate suitable for no animation updates (such as a cursor blinking
+     * or a sporadic update).
+     */
+    ANATIVEWINDOW_FRAME_RATE_CATEGORY_NO_PREFERENCE = 1,
+
+    /**
+     * Indicates a frame rate suitable for animations that looks fine even if played at a low frame
+     * rate.
+     */
+    ANATIVEWINDOW_FRAME_RATE_CATEGORY_LOW = 2,
+
+    /**
+     * Indicates a middle frame rate suitable for animations that do not require higher frame
+     * rates, or do not benefit from high smoothness. This is normally 60 Hz or close to it.
+     */
+    ANATIVEWINDOW_FRAME_RATE_CATEGORY_NORMAL = 3,
+
+    /**
+     * Indicates that, as a result of a user interaction, an animation is likely to start.
+     * This category is a signal that a user interaction heuristic determined the need of a
+     * high refresh rate, and is not an explicit request from the app.
+     * As opposed to FRAME_RATE_CATEGORY_HIGH, this vote may be ignored in favor of
+     * more explicit votes.
+     */
+    ANATIVEWINDOW_FRAME_RATE_CATEGORY_HIGH_HINT = 4,
+
+    /**
+     * Indicates a frame rate suitable for animations that require a high frame rate, which may
+     * increase smoothness but may also increase power usage.
+     */
+    ANATIVEWINDOW_FRAME_RATE_CATEGORY_HIGH = 5
+};
+
+/*
+ * Frame rate selection strategy values that can be used in
+ * Transaction::setFrameRateSelectionStrategy.
+ */
+enum {
+    /**
+     * Default value. The layer uses its own frame rate specifications, assuming it has any
+     * specifications, instead of its parent's. If it does not have its own frame rate
+     * specifications, it will try to use its parent's. It will propagate its specifications to any
+     * descendants that do not have their own.
+     *
+     * However, FRAME_RATE_SELECTION_STRATEGY_OVERRIDE_CHILDREN on an ancestor layer
+     * supersedes this behavior, meaning that this layer will inherit frame rate specifications
+     * regardless of whether it has its own.
+     */
+    ANATIVEWINDOW_FRAME_RATE_SELECTION_STRATEGY_PROPAGATE = 0,
+
+    /**
+     * The layer's frame rate specifications will propagate to and override those of its descendant
+     * layers.
+     *
+     * The layer itself has the FRAME_RATE_SELECTION_STRATEGY_PROPAGATE behavior.
+     * Thus, ancestor layer that also has the strategy
+     * FRAME_RATE_SELECTION_STRATEGY_OVERRIDE_CHILDREN will override this layer's
+     * frame rate specifications.
+     */
+    ANATIVEWINDOW_FRAME_RATE_SELECTION_STRATEGY_OVERRIDE_CHILDREN = 1,
+
+    /**
+     * The layer's frame rate specifications will not propagate to its descendant
+     * layers, even if the descendant layer has no frame rate specifications.
+     * However, FRAME_RATE_SELECTION_STRATEGY_OVERRIDE_CHILDREN on an ancestor
+     * layer supersedes this behavior.
+     */
+    ANATIVEWINDOW_FRAME_RATE_SELECTION_STRATEGY_SELF = 2,
 };
 
 static inline int native_window_set_frame_rate(struct ANativeWindow* window, float frameRate,
@@ -1042,13 +1153,33 @@ static inline int native_window_set_frame_rate(struct ANativeWindow* window, flo
                            (int)compatibility, (int)changeFrameRateStrategy);
 }
 
-static inline int native_window_set_frame_timeline_info(struct ANativeWindow* window,
-                                                        uint64_t frameNumber,
-                                                        int64_t frameTimelineVsyncId,
-                                                        int32_t inputEventId,
-                                                        int64_t startTimeNanos) {
-    return window->perform(window, NATIVE_WINDOW_SET_FRAME_TIMELINE_INFO, frameNumber,
-                           frameTimelineVsyncId, inputEventId, startTimeNanos);
+struct ANativeWindowFrameTimelineInfo {
+    // Frame Id received from ANativeWindow_getNextFrameId.
+    uint64_t frameNumber;
+
+    // VsyncId received from the Choreographer callback that started this frame.
+    int64_t frameTimelineVsyncId;
+
+    // Input Event ID received from the input event that started this frame.
+    int32_t inputEventId;
+
+    // The time which this frame rendering started (i.e. when Choreographer callback actually run)
+    int64_t startTimeNanos;
+
+    // Whether or not to use the vsyncId to determine the refresh rate. Used for TextureView only.
+    int32_t useForRefreshRateSelection;
+
+    // The VsyncId of a frame that was not drawn and squashed into this frame.
+    // Used for UI thread updates that were not picked up by RenderThread on time.
+    int64_t skippedFrameVsyncId;
+
+    // The start time of a frame that was not drawn and squashed into this frame.
+    int64_t skippedFrameStartTimeNanos;
+};
+
+static inline int native_window_set_frame_timeline_info(
+        struct ANativeWindow* window, struct ANativeWindowFrameTimelineInfo frameTimelineInfo) {
+    return window->perform(window, NATIVE_WINDOW_SET_FRAME_TIMELINE_INFO, frameTimelineInfo);
 }
 
 // ------------------------------------------------------------------------------------------------

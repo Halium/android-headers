@@ -41,9 +41,11 @@
  */
 
 #define AID_ROOT 0 /* traditional unix root user */
-/* The following are for LTP and should only be used for testing */
-#define AID_DAEMON 1 /* traditional unix daemon owner */
-#define AID_BIN 2    /* traditional unix binaries owner */
+
+/* The following are for tests like LTP and should only be used for testing. */
+#define AID_DAEMON 1 /* Traditional unix daemon owner. */
+#define AID_BIN 2    /* Traditional unix binaries owner. */
+#define AID_SYS 3    /* A group with the same gid on Linux/macOS/Android. */
 
 #define AID_SYSTEM 1000 /* system server */
 
@@ -139,6 +141,7 @@
 #define AID_SDK_SANDBOX 1090      /* SDK sandbox virtual UID */
 #define AID_SECURITY_LOG_WRITER 1091 /* write to security log */
 #define AID_PRNG_SEEDER 1092         /* PRNG seeder daemon */
+#define AID_UPROBESTATS 1093         /* uid for uprobestats */
 /* Changes to this file must be made in AOSP, *not* in internal branches. */
 
 #define AID_SHELL 2000 /* adb and debug shell user */
@@ -167,6 +170,7 @@
 #define AID_WAKELOCK 3010     /* Allow system wakelock read/write access */
 #define AID_UHID 3011         /* Allow read/write to /dev/uhid node */
 #define AID_READTRACEFS 3012  /* Allow tracefs read */
+#define AID_VIRTUALMACHINE 3013 /* Allows VMs to tune for performance*/
 
 /* The range 5000-5999 is also reserved for vendor partition. */
 #define AID_OEM_RESERVED_2_START 5000

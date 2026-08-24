@@ -135,6 +135,14 @@ extern const char* AMEDIAFORMAT_KEY_AAC_ENCODED_TARGET_LEVEL __INTRODUCED_IN(28)
 extern const char* AMEDIAFORMAT_KEY_AAC_MAX_OUTPUT_CHANNEL_COUNT __INTRODUCED_IN(28);
 extern const char* AMEDIAFORMAT_KEY_AAC_PROFILE __INTRODUCED_IN(21);
 extern const char* AMEDIAFORMAT_KEY_AAC_SBR_MODE __INTRODUCED_IN(28);
+/**
+ * A key for applications to opt out of allowing
+ * a Surface to discard undisplayed/unconsumed frames
+ * as means to catch up after falling behind.
+ *
+ * Semantics match those of {@link android.media.MediaFormat#KEY_ALLOW_FRAME_DROP}
+ */
+extern const char* AMEDIAFORMAT_KEY_ALLOW_FRAME_DROP __INTRODUCED_IN(34);
 extern const char* AMEDIAFORMAT_KEY_AUDIO_SESSION_ID __INTRODUCED_IN(28);
 extern const char* AMEDIAFORMAT_KEY_BITRATE_MODE __INTRODUCED_IN(28);
 extern const char* AMEDIAFORMAT_KEY_BIT_RATE __INTRODUCED_IN(21);
@@ -160,6 +168,7 @@ extern const char* AMEDIAFORMAT_KEY_GRID_COLUMNS __INTRODUCED_IN(28);
 extern const char* AMEDIAFORMAT_KEY_GRID_ROWS __INTRODUCED_IN(28);
 extern const char* AMEDIAFORMAT_KEY_HDR_STATIC_INFO __INTRODUCED_IN(28);
 extern const char* AMEDIAFORMAT_KEY_HEIGHT __INTRODUCED_IN(21);
+extern const char* AMEDIAFORMAT_KEY_IMPORTANCE __INTRODUCED_IN(35);
 extern const char* AMEDIAFORMAT_KEY_INTRA_REFRESH_PERIOD __INTRODUCED_IN(28);
 extern const char* AMEDIAFORMAT_KEY_IS_ADTS __INTRODUCED_IN(21);
 extern const char* AMEDIAFORMAT_KEY_IS_AUTOSELECT __INTRODUCED_IN(21);
@@ -169,8 +178,17 @@ extern const char* AMEDIAFORMAT_KEY_I_FRAME_INTERVAL __INTRODUCED_IN(21);
 extern const char* AMEDIAFORMAT_KEY_LANGUAGE __INTRODUCED_IN(21);
 extern const char* AMEDIAFORMAT_KEY_LATENCY __INTRODUCED_IN(28);
 extern const char* AMEDIAFORMAT_KEY_LEVEL __INTRODUCED_IN(28);
+/**
+ * A key describing the maximum number of B frames between I or P frames,
+ * to be used by a video encoder.
+ *
+ * Semantics match those of {@link android.media.MediaFormat#KEY_MAX_B_FRAMES}
+ */
+extern const char* AMEDIAFORMAT_KEY_MAX_B_FRAMES __INTRODUCED_IN(34);
 extern const char* AMEDIAFORMAT_KEY_MAX_HEIGHT __INTRODUCED_IN(21);
 extern const char* AMEDIAFORMAT_KEY_MAX_INPUT_SIZE __INTRODUCED_IN(21);
+extern const char* AMEDIAFORMAT_KEY_BUFFER_BATCH_MAX_OUTPUT_SIZE __INTRODUCED_IN(35);
+extern const char* AMEDIAFORMAT_KEY_BUFFER_BATCH_THRESHOLD_OUTPUT_SIZE __INTRODUCED_IN(35);
 extern const char* AMEDIAFORMAT_KEY_MAX_WIDTH __INTRODUCED_IN(21);
 extern const char* AMEDIAFORMAT_KEY_MIME __INTRODUCED_IN(21);
 extern const char* AMEDIAFORMAT_KEY_MPEG_USER_DATA __INTRODUCED_IN(28);

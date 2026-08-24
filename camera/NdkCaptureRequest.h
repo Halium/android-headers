@@ -99,7 +99,7 @@ typedef struct ACaptureRequest ACaptureRequest;
  *
  * @see ACaptureRequest_addTarget
  */
-camera_status_t ACameraOutputTarget_create(ACameraWindowType* window,
+camera_status_t ACameraOutputTarget_create(ANativeWindow* window,
         ACameraOutputTarget** output) __INTRODUCED_IN(24);
 
 /**
@@ -148,7 +148,7 @@ camera_status_t ACaptureRequest_removeTarget(ACaptureRequest* request,
  * @param request the {@link ACaptureRequest} of interest.
  * @param tag the tag value of the camera metadata entry to be get.
  * @param entry the output {@link ACameraMetadata_const_entry} will be filled here if the method
- *        call succeeeds.
+ *        call succeeds.
  *
  * @return <ul>
  *         <li>{@link ACAMERA_OK} if the method call succeeds.</li>
