@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007 The Android Open Source Project
+ * Copyright (C) 2014 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,25 +16,8 @@
 
 #pragma once
 
-#include  <sys/types.h>
+#include <inttypes.h>
 
-#if defined(_WIN32)
-#include <windows.h>
-#else
-#include <pthread.h>
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-//
-// Deprecated: use android::base::GetThreadId instead, which doesn't truncate on Mac/Windows.
-//
-#if !defined(__GLIBC__) || __GLIBC__ >= 2 && __GLIBC_MINOR__ < 32
-extern pid_t gettid();
-#endif
-
-#ifdef __cplusplus
-}
-#endif
+/* OpenBSD has these in <sys/param.h>, but "ALIGN" isn't something we want to reserve. */
+#define ALIGNBYTES (sizeof(uintptr_t) - 1)
+#define ALIGN(p) (((uintptr_t)(p) + ALIGNBYTES) & ~ALIGNBYTES)

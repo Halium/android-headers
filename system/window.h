@@ -255,6 +255,8 @@ enum {
     NATIVE_WINDOW_ALLOCATE_BUFFERS                = 45,    /* private */
     NATIVE_WINDOW_GET_LAST_QUEUED_BUFFER          = 46,    /* private */
     NATIVE_WINDOW_SET_QUERY_INTERCEPTOR           = 47,    /* private */
+    NATIVE_WINDOW_SET_FRAME_TIMELINE_INFO         = 48,    /* private */
+    NATIVE_WINDOW_GET_LAST_QUEUED_BUFFER2         = 49,    /* private */
     // clang-format on
 };
 
@@ -1016,10 +1018,37 @@ static inline int native_window_set_auto_prerotation(struct ANativeWindow* windo
     return window->perform(window, NATIVE_WINDOW_SET_AUTO_PREROTATION, autoPrerotation);
 }
 
+/*
+ * Internal extension of ANativeWindow_FrameRateCompatibility.
+ */
+enum {
+    /**
+     * This surface belongs to an app on the High Refresh Rate Deny list, and needs the display
+     * to operate at the exact frame rate.
+     *
+     * Keep in sync with Surface.java constant.
+     */
+    ANATIVEWINDOW_FRAME_RATE_EXACT = 100,
+
+    /**
+     * This surface is ignored while choosing the refresh rate.
+     */
+    ANATIVEWINDOW_FRAME_RATE_NO_VOTE,
+};
+
 static inline int native_window_set_frame_rate(struct ANativeWindow* window, float frameRate,
-                                               int8_t compatibility) {
+                                        int8_t compatibility, int8_t changeFrameRateStrategy) {
     return window->perform(window, NATIVE_WINDOW_SET_FRAME_RATE, (double)frameRate,
-                           (int)compatibility);
+                           (int)compatibility, (int)changeFrameRateStrategy);
+}
+
+static inline int native_window_set_frame_timeline_info(struct ANativeWindow* window,
+                                                        uint64_t frameNumber,
+                                                        int64_t frameTimelineVsyncId,
+                                                        int32_t inputEventId,
+                                                        int64_t startTimeNanos) {
+    return window->perform(window, NATIVE_WINDOW_SET_FRAME_TIMELINE_INFO, frameNumber,
+                           frameTimelineVsyncId, inputEventId, startTimeNanos);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1053,12 +1082,40 @@ static inline int ANativeWindow_getLastQueuedBuffer(ANativeWindow* window,
 }
 
 /**
+ * Retrieves the last queued buffer for this window, along with the fence that
+ * fires when the buffer is ready to be read. The cropRect & transform should be applied to the
+ * buffer's content.
+ *
+ * If there was no buffer previously queued, then outBuffer will be NULL and
+ * the value of outFence will be -1.
+ *
+ * Note that if outBuffer is not NULL, then the caller will hold a reference
+ * onto the buffer. Accordingly, the caller must call AHardwareBuffer_release
+ * when the buffer is no longer needed so that the system may reclaim the
+ * buffer.
+ *
+ * \return NO_ERROR on success.
+ * \return NO_MEMORY if there was insufficient memory.
+ * \return STATUS_UNKNOWN_TRANSACTION if this ANativeWindow doesn't support this method, callers
+ *         should fall back to ANativeWindow_getLastQueuedBuffer instead.
+ */
+static inline int ANativeWindow_getLastQueuedBuffer2(ANativeWindow* window,
+                                                     AHardwareBuffer** outBuffer, int* outFence,
+                                                     ARect* outCropRect, uint32_t* outTransform) {
+    return window->perform(window, NATIVE_WINDOW_GET_LAST_QUEUED_BUFFER2, outBuffer, outFence,
+                           outCropRect, outTransform);
+}
+
+/**
  * Retrieves an identifier for the next frame to be queued by this window.
  *
- * \return the next frame id.
+ * Frame ids start at 1 and are incremented on each new frame until the underlying surface changes,
+ * in which case the frame id is reset to 1.
+ *
+ * \return the next frame id (0 being uninitialized).
  */
-static inline int64_t ANativeWindow_getNextFrameId(ANativeWindow* window) {
-    int64_t value;
+static inline uint64_t ANativeWindow_getNextFrameId(ANativeWindow* window) {
+    uint64_t value;
     window->perform(window, NATIVE_WINDOW_GET_NEXT_FRAME_ID, &value);
     return value;
 }
