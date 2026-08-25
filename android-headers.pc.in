@@ -1,4 +1,4 @@
 Name: android-headers
 Description: Provides the headers for the droid system
 Version: 16.0.0
-Cflags: -I@includedir@
+Cflags: -I@includedir@ -include @includedir@/android-config.h
