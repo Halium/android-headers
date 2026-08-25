@@ -28,13 +28,10 @@
 
 #pragma once
 
-#include <errno.h>
-#include <stdlib.h>
 #include <sys/cdefs.h>
-#include <sys/mman.h>
-#include <sys/prctl.h>
+
 #include <stddef.h>
-#include <unistd.h>
+#include <stdint.h>
 
 const uint32_t kSmallObjectMaxSizeLog2 = 10;
 const uint32_t kSmallObjectMinSizeLog2 = 4;
@@ -110,12 +107,18 @@ class BionicAllocator {
   // Note that this implementation of realloc never shrinks allocation
   void* realloc(void* ptr, size_t size);
   void free(void* ptr);
+
+  // Returns the size of the given allocated heap chunk, if it is valid.
+  // Otherwise, this may return 0 or cause a segfault if the pointer is invalid.
+  size_t get_chunk_size(void* ptr);
+
  private:
   void* alloc_mmap(size_t align, size_t size);
   inline void* alloc_impl(size_t align, size_t size);
   inline page_info* get_page_info_unchecked(void* ptr);
   inline page_info* get_page_info(void* ptr);
-  BionicSmallObjectAllocator* get_small_object_allocator(uint32_t type);
+  BionicSmallObjectAllocator* get_small_object_allocator_unchecked(uint32_t type);
+  BionicSmallObjectAllocator* get_small_object_allocator(page_info* pi, void* ptr);
   void initialize_allocators();
 
   BionicSmallObjectAllocator* allocators_;

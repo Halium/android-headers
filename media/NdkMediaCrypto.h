@@ -36,6 +36,12 @@
 #ifndef _NDK_MEDIA_CRYPTO_H
 #define _NDK_MEDIA_CRYPTO_H
 
+
+/* halium: clang-only _Nullable/_Nonnull and __INTRODUCED_IN() are
+   defined away here, so this header parses under GCC without the consumer
+   having to arrange it. */
+#include "../android-config.h"
+
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <stdbool.h>
@@ -46,8 +52,6 @@ struct AMediaCrypto;
 typedef struct AMediaCrypto AMediaCrypto;
 
 typedef uint8_t AMediaUUID[16];
-
-#if __ANDROID_API__ >= 21
 
 /**
  * Available since API level 21.
@@ -68,8 +72,6 @@ AMediaCrypto* AMediaCrypto_new(const AMediaUUID uuid, const void *initData, size
  * Available since API level 21.
  */
 void AMediaCrypto_delete(AMediaCrypto* crypto) __INTRODUCED_IN(21);
-
-#endif /* __ANDROID_API__ >= 21 */
 
 __END_DECLS
 

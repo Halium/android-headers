@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <sys/cdefs.h>
+
 #include "platform/bionic/macros.h"
 
 // Tracing class for bionic. To begin a trace at a specified point:
@@ -28,7 +30,9 @@ class __LIBC_HIDDEN__ ScopedTrace {
   ~ScopedTrace();
 
   void End();
+
  private:
+  bool should_trace_;
   bool called_end_;
   BIONIC_DISALLOW_COPY_AND_ASSIGN(ScopedTrace);
 };

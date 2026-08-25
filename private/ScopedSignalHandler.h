@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <sys/cdefs.h>
+
 #include <signal.h>
 
 class ScopedSignalHandler {

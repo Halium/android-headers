@@ -1,112 +1,142 @@
 ================================================
-bionic @ Sat Jun  6 16:00:47 EEST 2026
+bionic @ Tue Aug 25 06:43:44 CEST 2026
 ================================================
-+ cd /home/nekit/halium-11.0
++ cd /media/herrie/HaliumDisk/16.0
 + repo status bionic
+
+... A new version of repo (2.65) is available.
+... New version is available at: /media/herrie/HaliumDisk/16.0/.repo/repo/repo
+... The launcher is run from: /usr/bin/repo
+!!! The launcher is not writable.  Please talk to your sysadmin or distro
+!!! to get an update installed.
+
 nothing to commit (working directory clean)
-+ cd /home/nekit/halium-11.0/bionic
++ cd /media/herrie/HaliumDisk/16.0/bionic
 + git show-ref --head
-ecf6d056d329d737d4d3f38213d52e787c14035d HEAD
-3a003876ad043c5280e0fbb334e8d17c3d941bfc refs/remotes/github/lineage-18.1
-3a003876ad043c5280e0fbb334e8d17c3d941bfc refs/remotes/m/halium-11.0
+7a1a193c0b255f65ad3f509d63a0bc44ad33fa2f HEAD
+7ad2441de12bf7b5dc0055e0a940583d80fe104b refs/remotes/github/lineage-23.2
+7ad2441de12bf7b5dc0055e0a940583d80fe104b refs/remotes/m/halium-16.0
 + git remote -v
-github	https://github.com/LineageOS/android_bionic (fetch)
-github	https://github.com/LineageOS/android_bionic (push)
+github	git@github.com:LineageOS/android_bionic (fetch)
+github	git@github.com:LineageOS/android_bionic (push)
 
 
 ================================================
-hardware/libhardware @ Sat Jun  6 16:00:47 EEST 2026
+hardware/libhardware @ Tue Aug 25 06:43:44 CEST 2026
 ================================================
-+ cd /home/nekit/halium-11.0
++ cd /media/herrie/HaliumDisk/16.0
 + repo status hardware/libhardware
+
+... A new version of repo (2.65) is available.
+... New version is available at: /media/herrie/HaliumDisk/16.0/.repo/repo/repo
+... The launcher is run from: /usr/bin/repo
+!!! The launcher is not writable.  Please talk to your sysadmin or distro
+!!! to get an update installed.
+
 nothing to commit (working directory clean)
-+ cd /home/nekit/halium-11.0/hardware/libhardware
++ cd /media/herrie/HaliumDisk/16.0/hardware/libhardware
 + git show-ref --head
-4a374c17d502dd1d1628c8fe0065e908f39473b5 HEAD
-90e3ce2014c258736729a8da929f76d50dc19255 refs/remotes/github/lineage-18.1
-90e3ce2014c258736729a8da929f76d50dc19255 refs/remotes/m/halium-11.0
+0c3e9e0fe76d30d32282c7e8fcdbddc393dc297b HEAD
+0c3e9e0fe76d30d32282c7e8fcdbddc393dc297b refs/remotes/github/lineage-23.2
+0c3e9e0fe76d30d32282c7e8fcdbddc393dc297b refs/remotes/m/halium-16.0
 + git remote -v
-github	https://github.com/LineageOS/android_hardware_libhardware (fetch)
-github	https://github.com/LineageOS/android_hardware_libhardware (push)
+github	git@github.com:LineageOS/android_hardware_libhardware (fetch)
+github	git@github.com:LineageOS/android_hardware_libhardware (push)
 
 
 ================================================
-hardware/libhardware_legacy @ Sat Jun  6 16:00:47 EEST 2026
+hardware/libhardware_legacy @ Tue Aug 25 06:43:44 CEST 2026
 ================================================
-+ cd /home/nekit/halium-11.0
++ cd /media/herrie/HaliumDisk/16.0
 + repo status hardware/libhardware_legacy
+
+... A new version of repo (2.65) is available.
+... New version is available at: /media/herrie/HaliumDisk/16.0/.repo/repo/repo
+... The launcher is run from: /usr/bin/repo
+!!! The launcher is not writable.  Please talk to your sysadmin or distro
+!!! to get an update installed.
+
 nothing to commit (working directory clean)
-+ cd /home/nekit/halium-11.0/hardware/libhardware_legacy
++ cd /media/herrie/HaliumDisk/16.0/hardware/libhardware_legacy
 + git show-ref --head
-22f705057482747bd4b7c5f3e9d60a12a4558257 HEAD
-3d8e91ff970ad955ad15632f47ceab4e97419041 refs/remotes/m/halium-11.0
-3d8e91ff970ad955ad15632f47ceab4e97419041 refs/tags/android-11.0.0_r46
+3e1bd41dcb66b0ee75ada6e2167a3d7fecd7fce9 HEAD
+753202a39c8be06e57e7c425ee0276f93022ec3c refs/remotes/m/halium-16.0
+753202a39c8be06e57e7c425ee0276f93022ec3c refs/tags/android-16.0.0_r4
 + git remote -v
 aosp	https://android.googlesource.com/platform/hardware/libhardware_legacy (fetch)
 aosp	https://android.googlesource.com/platform/hardware/libhardware_legacy (push)
 
 
 ================================================
-system/core @ Sat Jun  6 16:00:47 EEST 2026
+system/core @ Tue Aug 25 06:43:44 CEST 2026
 ================================================
-+ cd /home/nekit/halium-11.0
++ cd /media/herrie/HaliumDisk/16.0
 + repo status system/core
+
+... A new version of repo (2.65) is available.
+... New version is available at: /media/herrie/HaliumDisk/16.0/.repo/repo/repo
+... The launcher is run from: /usr/bin/repo
+!!! The launcher is not writable.  Please talk to your sysadmin or distro
+!!! to get an update installed.
+
 nothing to commit (working directory clean)
-+ cd /home/nekit/halium-11.0/system/core
++ cd /media/herrie/HaliumDisk/16.0/system/core
 + git show-ref --head
-9177d014fa10fb636572e8379a13b4a042365c7b HEAD
-b5f8d6741cae769ef8390d44b77dca9708ccfa32 refs/remotes/github/lineage-18.1
-b5f8d6741cae769ef8390d44b77dca9708ccfa32 refs/remotes/m/halium-11.0
+363253d961086465bbb97dbe273009245dd10004 HEAD
+e99d3d82bd3dac2df72cb741e1067b19c38e87c6 refs/remotes/github/lineage-23.2
+e99d3d82bd3dac2df72cb741e1067b19c38e87c6 refs/remotes/m/halium-16.0
 + git remote -v
-github	https://github.com/LineageOS/android_system_core (fetch)
-github	https://github.com/LineageOS/android_system_core (push)
+github	git@github.com:LineageOS/android_system_core (fetch)
+github	git@github.com:LineageOS/android_system_core (push)
 
 
 ================================================
-system/media @ Sat Jun  6 16:00:47 EEST 2026
+system/media @ Tue Aug 25 06:43:44 CEST 2026
 ================================================
-+ cd /home/nekit/halium-11.0
++ cd /media/herrie/HaliumDisk/16.0
 + repo status system/media
+
+... A new version of repo (2.65) is available.
+... New version is available at: /media/herrie/HaliumDisk/16.0/.repo/repo/repo
+... The launcher is run from: /usr/bin/repo
+!!! The launcher is not writable.  Please talk to your sysadmin or distro
+!!! to get an update installed.
+
 nothing to commit (working directory clean)
-+ cd /home/nekit/halium-11.0/system/media
++ cd /media/herrie/HaliumDisk/16.0/system/media
 + git show-ref --head
-b432f63fcbf6fecb43631ac8ef0454fa770182a4 HEAD
-b432f63fcbf6fecb43631ac8ef0454fa770182a4 refs/remotes/github/lineage-18.1
-b432f63fcbf6fecb43631ac8ef0454fa770182a4 refs/remotes/m/halium-11.0
+57c4ee8b27f8b111cc761c5fbdbeb727406aa4e4 HEAD
+57c4ee8b27f8b111cc761c5fbdbeb727406aa4e4 refs/remotes/github/lineage-23.2
+57c4ee8b27f8b111cc761c5fbdbeb727406aa4e4 refs/remotes/m/halium-16.0
 + git remote -v
-github	https://github.com/LineageOS/android_system_media (fetch)
-github	https://github.com/LineageOS/android_system_media (push)
+github	git@github.com:LineageOS/android_system_media (fetch)
+github	git@github.com:LineageOS/android_system_media (push)
 
 
 ================================================
-external/kernel-headers @ Sat Jun  6 16:00:47 EEST 2026
+external/kernel-headers @ Tue Aug 25 06:43:44 CEST 2026
 ================================================
-+ cd /home/nekit/halium-11.0
++ cd /media/herrie/HaliumDisk/16.0
 + repo status external/kernel-headers
+
+... A new version of repo (2.65) is available.
+... New version is available at: /media/herrie/HaliumDisk/16.0/.repo/repo/repo
+... The launcher is run from: /usr/bin/repo
+!!! The launcher is not writable.  Please talk to your sysadmin or distro
+!!! to get an update installed.
+
 nothing to commit (working directory clean)
-+ cd /home/nekit/halium-11.0/external/kernel-headers
++ cd /media/herrie/HaliumDisk/16.0/external/kernel-headers
 + git show-ref --head
-98de591de8a89211e0d97ce6da031ec142ee8b86 HEAD
-f88628cc2c0afb7a6a61f3c835d19179f00d6e16 refs/remotes/m/halium-11.0
-f88628cc2c0afb7a6a61f3c835d19179f00d6e16 refs/tags/android-11.0.0_r46
+2ce289a24f8d30e09fe6c68dc425c97a3b77195d HEAD
+40d9b8e22922a4ed88b04e6b4162210f43092afe refs/remotes/m/halium-16.0
+40d9b8e22922a4ed88b04e6b4162210f43092afe refs/tags/android-16.0.0_r4
 + git remote -v
 aosp	https://android.googlesource.com/platform/external/kernel-headers (fetch)
 aosp	https://android.googlesource.com/platform/external/kernel-headers (push)
 
 
 ================================================
-external/libnfc-nxp @ Sat Jun  6 16:00:47 EEST 2026
+external/libnfc-nxp @ Tue Aug 25 06:43:44 CEST 2026
 ================================================
-+ cd /home/nekit/halium-11.0
-+ repo status external/libnfc-nxp
-nothing to commit (working directory clean)
-+ cd /home/nekit/halium-11.0/external/libnfc-nxp
-+ git show-ref --head
-e4fb0694ac4eb888f098598bd895587b71747ce5 HEAD
-e4fb0694ac4eb888f098598bd895587b71747ce5 refs/remotes/github/lineage-18.1
-e4fb0694ac4eb888f098598bd895587b71747ce5 refs/remotes/m/halium-11.0
-+ git remote -v
-github	https://github.com/LineageOS/android_external_libnfc-nxp (fetch)
-github	https://github.com/LineageOS/android_external_libnfc-nxp (push)
-
-
+WARNING: external/libnfc-nxp does not contain a Git repository

@@ -41,6 +41,8 @@
 #include <system/graphics.h>
 #include <unistd.h>
 
+#include <vndk/hardware_buffer.h>
+
 // system/window.h is a superset of the vndk and apex apis
 #include <apex/window.h>
 #include <vndk/window.h>
@@ -235,8 +237,8 @@ enum {
     NATIVE_WINDOW_ENABLE_FRAME_TIMESTAMPS         = 25,
     NATIVE_WINDOW_GET_COMPOSITOR_TIMING           = 26,
     NATIVE_WINDOW_GET_FRAME_TIMESTAMPS            = 27,
-    NATIVE_WINDOW_GET_WIDE_COLOR_SUPPORT          = 28,
-    NATIVE_WINDOW_GET_HDR_SUPPORT                 = 29,
+    /* 28, removed: NATIVE_WINDOW_GET_WIDE_COLOR_SUPPORT */
+    /* 29, removed: NATIVE_WINDOW_GET_HDR_SUPPORT */
     NATIVE_WINDOW_SET_USAGE64                     = ANATIVEWINDOW_PERFORM_SET_USAGE64,
     NATIVE_WINDOW_GET_CONSUMER_USAGE64            = 31,
     NATIVE_WINDOW_SET_BUFFERS_SMPTE2086_METADATA  = 32,
@@ -255,6 +257,9 @@ enum {
     NATIVE_WINDOW_ALLOCATE_BUFFERS                = 45,    /* private */
     NATIVE_WINDOW_GET_LAST_QUEUED_BUFFER          = 46,    /* private */
     NATIVE_WINDOW_SET_QUERY_INTERCEPTOR           = 47,    /* private */
+    NATIVE_WINDOW_SET_FRAME_TIMELINE_INFO         = 48,    /* private */
+    NATIVE_WINDOW_GET_LAST_QUEUED_BUFFER2         = 49,    /* private */
+    NATIVE_WINDOW_SET_BUFFERS_ADDITIONAL_OPTIONS  = 50,
     // clang-format on
 };
 
@@ -986,15 +991,34 @@ static inline int native_window_get_frame_timestamps(
             outDequeueReadyTime, outReleaseTime);
 }
 
-static inline int native_window_get_wide_color_support(
-    struct ANativeWindow* window, bool* outSupport) {
-    return window->perform(window, NATIVE_WINDOW_GET_WIDE_COLOR_SUPPORT,
-            outSupport);
+/* deprecated. Always returns 0 and outSupport holds true. Don't call. */
+static inline int native_window_get_wide_color_support (
+    struct ANativeWindow* window __UNUSED, bool* outSupport) __deprecated;
+
+/*
+   Deprecated(b/242763577): to be removed, this method should not be used
+   Surface support should not be tied to the display
+   Return true since most displays should have this support
+*/
+static inline int native_window_get_wide_color_support (
+    struct ANativeWindow* window __UNUSED, bool* outSupport) {
+    *outSupport = true;
+    return 0;
 }
 
-static inline int native_window_get_hdr_support(struct ANativeWindow* window,
+/* deprecated. Always returns 0 and outSupport holds true. Don't call. */
+static inline int native_window_get_hdr_support(struct ANativeWindow* window __UNUSED,
+                                                bool* outSupport) __deprecated;
+
+/*
+   Deprecated(b/242763577): to be removed, this method should not be used
+   Surface support should not be tied to the display
+   Return true since most displays should have this support
+*/
+static inline int native_window_get_hdr_support(struct ANativeWindow* window __UNUSED,
                                                 bool* outSupport) {
-    return window->perform(window, NATIVE_WINDOW_GET_HDR_SUPPORT, outSupport);
+    *outSupport = true;
+    return 0;
 }
 
 static inline int native_window_get_consumer_usage(struct ANativeWindow* window,
@@ -1016,10 +1040,164 @@ static inline int native_window_set_auto_prerotation(struct ANativeWindow* windo
     return window->perform(window, NATIVE_WINDOW_SET_AUTO_PREROTATION, autoPrerotation);
 }
 
+/*
+ * Internal extension of ANativeWindow_FrameRateCompatibility.
+ */
+enum {
+    /**
+     * This surface belongs to an app on the High Refresh Rate Deny list, and needs the display
+     * to operate at the exact frame rate.
+     *
+     * Keep in sync with Surface.java constant.
+     */
+    ANATIVEWINDOW_FRAME_RATE_EXACT = 100,
+
+    /**
+     * This surface is ignored while choosing the refresh rate.
+     */
+    ANATIVEWINDOW_FRAME_RATE_NO_VOTE,
+
+    /**
+     * This surface will vote for the minimum refresh rate.
+     */
+    ANATIVEWINDOW_FRAME_RATE_MIN
+};
+
+/*
+ * Frame rate category values that can be used in Transaction::setFrameRateCategory.
+ */
+enum {
+    /**
+     * Default value. This value can also be set to return to default behavior, such as layers
+     * without animations.
+     */
+    ANATIVEWINDOW_FRAME_RATE_CATEGORY_DEFAULT = 0,
+
+    /**
+     * The layer will explicitly not influence the frame rate.
+     * This may indicate a frame rate suitable for no animation updates (such as a cursor blinking
+     * or a sporadic update).
+     */
+    ANATIVEWINDOW_FRAME_RATE_CATEGORY_NO_PREFERENCE = 1,
+
+    /**
+     * Indicates a frame rate suitable for animations that looks fine even if played at a low frame
+     * rate.
+     */
+    ANATIVEWINDOW_FRAME_RATE_CATEGORY_LOW = 2,
+
+    /**
+     * Indicates a middle frame rate suitable for animations that do not require higher frame
+     * rates, or do not benefit from high smoothness. This is normally 60 Hz or close to it.
+     */
+    ANATIVEWINDOW_FRAME_RATE_CATEGORY_NORMAL = 3,
+
+    /**
+     * Indicates that, as a result of a user interaction, an animation is likely to start.
+     * This category is a signal that a user interaction heuristic determined the need of a
+     * high refresh rate, and is not an explicit request from the app.
+     * As opposed to FRAME_RATE_CATEGORY_HIGH, this vote may be ignored in favor of
+     * more explicit votes.
+     */
+    ANATIVEWINDOW_FRAME_RATE_CATEGORY_HIGH_HINT = 4,
+
+    /**
+     * Indicates a frame rate suitable for animations that require a high frame rate, which may
+     * increase smoothness but may also increase power usage.
+     */
+    ANATIVEWINDOW_FRAME_RATE_CATEGORY_HIGH = 5
+};
+
+/*
+ * Frame rate selection strategy values that can be used in
+ * Transaction::setFrameRateSelectionStrategy.
+ */
+enum {
+    /**
+     * Default value. The layer uses its own frame rate specifications, assuming it has any
+     * specifications, instead of its parent's. If it does not have its own frame rate
+     * specifications, it will try to use its parent's. It will propagate its specifications to any
+     * descendants that do not have their own.
+     *
+     * However, FRAME_RATE_SELECTION_STRATEGY_OVERRIDE_CHILDREN on an ancestor layer
+     * supersedes this behavior, meaning that this layer will inherit frame rate specifications
+     * regardless of whether it has its own.
+     */
+    ANATIVEWINDOW_FRAME_RATE_SELECTION_STRATEGY_PROPAGATE = 0,
+
+    /**
+     * The layer's frame rate specifications will propagate to and override those of its descendant
+     * layers.
+     *
+     * The layer itself has the FRAME_RATE_SELECTION_STRATEGY_PROPAGATE behavior.
+     * Thus, ancestor layer that also has the strategy
+     * FRAME_RATE_SELECTION_STRATEGY_OVERRIDE_CHILDREN will override this layer's
+     * frame rate specifications.
+     */
+    ANATIVEWINDOW_FRAME_RATE_SELECTION_STRATEGY_OVERRIDE_CHILDREN = 1,
+
+    /**
+     * The layer's frame rate specifications will not propagate to its descendant
+     * layers, even if the descendant layer has no frame rate specifications.
+     * However, FRAME_RATE_SELECTION_STRATEGY_OVERRIDE_CHILDREN on an ancestor
+     * layer supersedes this behavior.
+     */
+    ANATIVEWINDOW_FRAME_RATE_SELECTION_STRATEGY_SELF = 2,
+};
+
 static inline int native_window_set_frame_rate(struct ANativeWindow* window, float frameRate,
-                                               int8_t compatibility) {
+                                        int8_t compatibility, int8_t changeFrameRateStrategy) {
     return window->perform(window, NATIVE_WINDOW_SET_FRAME_RATE, (double)frameRate,
-                           (int)compatibility);
+                           (int)compatibility, (int)changeFrameRateStrategy);
+}
+
+struct ANativeWindowFrameTimelineInfo {
+    // Frame Id received from ANativeWindow_getNextFrameId.
+    uint64_t frameNumber;
+
+    // VsyncId received from the Choreographer callback that started this frame.
+    int64_t frameTimelineVsyncId;
+
+    // Input Event ID received from the input event that started this frame.
+    int32_t inputEventId;
+
+    // The time which this frame rendering started (i.e. when Choreographer callback actually run)
+    int64_t startTimeNanos;
+
+    // Whether or not to use the vsyncId to determine the refresh rate. Used for TextureView only.
+    int32_t useForRefreshRateSelection;
+
+    // The VsyncId of a frame that was not drawn and squashed into this frame.
+    // Used for UI thread updates that were not picked up by RenderThread on time.
+    int64_t skippedFrameVsyncId;
+
+    // The start time of a frame that was not drawn and squashed into this frame.
+    int64_t skippedFrameStartTimeNanos;
+};
+
+static inline int native_window_set_frame_timeline_info(
+        struct ANativeWindow* window, struct ANativeWindowFrameTimelineInfo frameTimelineInfo) {
+    return window->perform(window, NATIVE_WINDOW_SET_FRAME_TIMELINE_INFO, frameTimelineInfo);
+}
+
+/**
+ * native_window_set_buffers_additional_options(..., ExtendableType* additionalOptions, size_t size)
+ * All buffers dequeued after this call will have the additionalOptions specified.
+ *
+ * This must only be called after api_connect, otherwise NO_INIT is returned. The options are
+ * cleared in api_disconnect & api_connect
+ *
+ * If IAllocator is not v2 or newer this method returns INVALID_OPERATION
+ *
+ * \return NO_ERROR on success.
+ * \return NO_INIT if no api is connected
+ * \return INVALID_OPERATION if additional option support is not available
+ */
+static inline int native_window_set_buffers_additional_options(
+        struct ANativeWindow* window, const AHardwareBufferLongOptions* additionalOptions,
+        size_t additionalOptionsSize) {
+    return window->perform(window, NATIVE_WINDOW_SET_BUFFERS_ADDITIONAL_OPTIONS, additionalOptions,
+                           additionalOptionsSize);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1053,12 +1231,40 @@ static inline int ANativeWindow_getLastQueuedBuffer(ANativeWindow* window,
 }
 
 /**
+ * Retrieves the last queued buffer for this window, along with the fence that
+ * fires when the buffer is ready to be read. The cropRect & transform should be applied to the
+ * buffer's content.
+ *
+ * If there was no buffer previously queued, then outBuffer will be NULL and
+ * the value of outFence will be -1.
+ *
+ * Note that if outBuffer is not NULL, then the caller will hold a reference
+ * onto the buffer. Accordingly, the caller must call AHardwareBuffer_release
+ * when the buffer is no longer needed so that the system may reclaim the
+ * buffer.
+ *
+ * \return NO_ERROR on success.
+ * \return NO_MEMORY if there was insufficient memory.
+ * \return STATUS_UNKNOWN_TRANSACTION if this ANativeWindow doesn't support this method, callers
+ *         should fall back to ANativeWindow_getLastQueuedBuffer instead.
+ */
+static inline int ANativeWindow_getLastQueuedBuffer2(ANativeWindow* window,
+                                                     AHardwareBuffer** outBuffer, int* outFence,
+                                                     ARect* outCropRect, uint32_t* outTransform) {
+    return window->perform(window, NATIVE_WINDOW_GET_LAST_QUEUED_BUFFER2, outBuffer, outFence,
+                           outCropRect, outTransform);
+}
+
+/**
  * Retrieves an identifier for the next frame to be queued by this window.
  *
- * \return the next frame id.
+ * Frame ids start at 1 and are incremented on each new frame until the underlying surface changes,
+ * in which case the frame id is reset to 1.
+ *
+ * \return the next frame id (0 being uninitialized).
  */
-static inline int64_t ANativeWindow_getNextFrameId(ANativeWindow* window) {
-    int64_t value;
+static inline uint64_t ANativeWindow_getNextFrameId(ANativeWindow* window) {
+    uint64_t value;
     window->perform(window, NATIVE_WINDOW_GET_NEXT_FRAME_ID, &value);
     return value;
 }

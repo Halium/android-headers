@@ -26,14 +26,21 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __BIONIC_PRIVATE_BIONIC_DEFS_H_
-#define __BIONIC_PRIVATE_BIONIC_DEFS_H_
+#pragma once
+
+#include <sys/cdefs.h>
 
 /*
  * This label is used to mark libc/libdl symbols that may need to be replaced
  * by native bridge implementation.
  */
+#ifdef __ANDROID_NATIVE_BRIDGE__
 #define __BIONIC_WEAK_FOR_NATIVE_BRIDGE __attribute__((__weak__, __noinline__))
 #define __BIONIC_WEAK_VARIABLE_FOR_NATIVE_BRIDGE __attribute__((__weak__))
-
-#endif /* __BIONIC_PRIVATE_BIONIC_DEFS_H_ */
+#define __BIONIC_WEAK_FOR_NATIVE_BRIDGE_INLINE \
+  __BIONIC_WEAK_FOR_NATIVE_BRIDGE extern "C" __LIBC_HIDDEN__
+#else
+#define __BIONIC_WEAK_FOR_NATIVE_BRIDGE
+#define __BIONIC_WEAK_VARIABLE_FOR_NATIVE_BRIDGE
+#define __BIONIC_WEAK_FOR_NATIVE_BRIDGE_INLINE static inline
+#endif

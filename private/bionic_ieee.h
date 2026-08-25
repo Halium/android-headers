@@ -45,8 +45,9 @@
  *	@(#)ieee.h	8.1 (Berkeley) 6/11/93
  */
 
-#ifndef _MACHINE_IEEE_H_
-#define _MACHINE_IEEE_H_
+#pragma once
+
+#include <sys/cdefs.h>
 
 #include <sys/types.h>
 
@@ -114,5 +115,3 @@ struct ieee_ext {
 #endif
 
 __END_DECLS
-
-#endif /* _MACHINE_IEEE_H_ */

@@ -26,6 +26,10 @@
  * SUCH DAMAGE.
  */
 
+#pragma once
+
+#include <sys/cdefs.h>
+
 #include <ctype.h>
 #include <stdlib.h>
 

@@ -18,16 +18,18 @@
 #ifndef ANDROID_AUDIO_CORE_H
 #define ANDROID_AUDIO_CORE_H
 
+#include <float.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-#include <cutils/bitops.h>
-
-#include "audio-base.h"
 #include "audio-base-utils.h"
+#include "audio-base.h"
+#include "audio-hal-enums.h"
+#include "audio_common-base.h"
 
 /*
  * Annotation to tell clang that we intend to fall through from one case to
@@ -42,6 +44,12 @@
 #define FALLTHROUGH_INTENDED
 #endif // __cplusplus
 #endif // FALLTHROUGH_INTENDED
+
+#ifdef __cplusplus
+#define CONSTEXPR constexpr
+#else
+#define CONSTEXPR
+#endif
 
 __BEGIN_DECLS
 
@@ -58,12 +66,37 @@ __BEGIN_DECLS
 /* AudioFlinger and AudioPolicy services use I/O handles to identify audio sources and sinks */
 typedef int audio_io_handle_t;
 
-typedef uint32_t audio_flags_mask_t;
+/* Null values for handles. */
+enum {
+    AUDIO_IO_HANDLE_NONE = 0,
+    AUDIO_MODULE_HANDLE_NONE = 0,
+    AUDIO_PORT_HANDLE_NONE = 0,
+    AUDIO_PATCH_HANDLE_NONE = 0,
+};
+
+typedef enum {
+#ifndef AUDIO_NO_SYSTEM_DECLARATIONS
+    AUDIO_MODE_INVALID = -2, // (-2)
+    AUDIO_MODE_CURRENT = -1, // (-1)
+#endif // AUDIO_NO_SYSTEM_DECLARATIONS
+    AUDIO_MODE_NORMAL = HAL_AUDIO_MODE_NORMAL,
+    AUDIO_MODE_RINGTONE = HAL_AUDIO_MODE_RINGTONE,
+    AUDIO_MODE_IN_CALL = HAL_AUDIO_MODE_IN_CALL,
+    AUDIO_MODE_IN_COMMUNICATION = HAL_AUDIO_MODE_IN_COMMUNICATION,
+    AUDIO_MODE_CALL_SCREEN = HAL_AUDIO_MODE_CALL_SCREEN,
+    AUDIO_MODE_ASSISTANT_CONVERSATION = 7,
+#ifndef AUDIO_NO_SYSTEM_DECLARATIONS
+    AUDIO_MODE_CALL_REDIRECT = 5,
+    AUDIO_MODE_COMMUNICATION_REDIRECT = 6,
+    AUDIO_MODE_MAX            = AUDIO_MODE_ASSISTANT_CONVERSATION,
+    AUDIO_MODE_CNT            = AUDIO_MODE_MAX + 1,
+#endif // AUDIO_NO_SYSTEM_DECLARATIONS
+} audio_mode_t;
 
 /* Do not change these values without updating their counterparts
  * in frameworks/base/media/java/android/media/AudioAttributes.java
  */
-enum {
+typedef enum {
     AUDIO_FLAG_NONE                       = 0x0,
     AUDIO_FLAG_AUDIBILITY_ENFORCED        = 0x1,
     AUDIO_FLAG_SECURE                     = 0x2,
@@ -79,7 +112,10 @@ enum {
     AUDIO_FLAG_MUTE_HAPTIC                = 0x800,
     AUDIO_FLAG_NO_SYSTEM_CAPTURE          = 0X1000,
     AUDIO_FLAG_CAPTURE_PRIVATE            = 0X2000,
-};
+    AUDIO_FLAG_CONTENT_SPATIALIZED        = 0X4000,
+    AUDIO_FLAG_NEVER_SPATIALIZE           = 0X8000,
+    AUDIO_FLAG_CALL_REDIRECTION           = 0X10000,
+} audio_flags_mask_t;
 
 /* Audio attributes */
 #define AUDIO_ATTRIBUTES_TAGS_MAX_SIZE 256
@@ -90,6 +126,14 @@ typedef struct {
     audio_flags_mask_t   flags;
     char                 tags[AUDIO_ATTRIBUTES_TAGS_MAX_SIZE]; /* UTF8 */
 } __attribute__((packed)) audio_attributes_t; // sent through Binder;
+/** The separator for tags. */
+static const char AUDIO_ATTRIBUTES_TAGS_SEPARATOR = ';';
+/** Tag value for GMAP bidirectional mode indication */
+static const char* AUDIO_ATTRIBUTES_TAG_GMAP_BIDIRECTIONAL = "VX_AOSP_bidirectional";
+
+// Keep sync with android/media/AudioProductStrategy.java
+static const audio_flags_mask_t AUDIO_FLAGS_AFFECT_STRATEGY_SELECTION =
+        (audio_flags_mask_t)(AUDIO_FLAG_AUDIBILITY_ENFORCED | AUDIO_FLAG_SCO | AUDIO_FLAG_BEACON);
 
 static const audio_attributes_t AUDIO_ATTRIBUTES_INITIALIZER = {
     /* .content_type = */ AUDIO_CONTENT_TYPE_UNKNOWN,
@@ -103,6 +147,13 @@ static inline audio_attributes_t attributes_initializer(audio_usage_t usage)
 {
     audio_attributes_t attributes = AUDIO_ATTRIBUTES_INITIALIZER;
     attributes.usage = usage;
+    return attributes;
+}
+
+static inline audio_attributes_t attributes_initializer_flags(audio_flags_mask_t flags)
+{
+    audio_attributes_t attributes = AUDIO_ATTRIBUTES_INITIALIZER;
+    attributes.flags = flags;
     return attributes;
 }
 
@@ -158,6 +209,16 @@ static inline audio_unique_id_use_t audio_unique_id_get_use(audio_unique_id_t id
     return (audio_unique_id_use_t) (id & AUDIO_UNIQUE_ID_USE_MASK);
 }
 
+typedef enum : int32_t {
+    AUDIO_SESSION_DEVICE = HAL_AUDIO_SESSION_DEVICE,
+    AUDIO_SESSION_OUTPUT_STAGE = HAL_AUDIO_SESSION_OUTPUT_STAGE,
+    AUDIO_SESSION_OUTPUT_MIX = HAL_AUDIO_SESSION_OUTPUT_MIX,
+#ifndef AUDIO_NO_SYSTEM_DECLARATIONS
+    AUDIO_SESSION_ALLOCATE = 0,
+    AUDIO_SESSION_NONE = 0,
+#endif
+} audio_session_t;
+
 /* Reserved audio_unique_id_t values.  FIXME: not a complete list. */
 #define AUDIO_UNIQUE_ID_ALLOCATE AUDIO_SESSION_ALLOCATE
 
@@ -167,6 +228,24 @@ static inline audio_unique_id_use_t audio_unique_id_get_use(audio_unique_id_t id
 static inline bool audio_is_global_session(audio_session_t session) {
     return session <= AUDIO_SESSION_OUTPUT_MIX;
 }
+
+/* These constants are used instead of "magic numbers" for
+ * channel counts.
+ */
+enum {
+    FCC_1 = 1,
+    FCC_2 = 2,
+    FCC_8 = 8,
+    FCC_12 = 12,
+    FCC_24 = 24,
+    FCC_26 = 26,
+    // FCC_LIMIT is the maximum PCM channel count supported through
+    // the mixing pipeline to the audio HAL.
+    //
+    // This can be adjusted onto a value such as FCC_12 or FCC_26
+    // if the device HAL can support it.  Do not reduce below FCC_8.
+    FCC_LIMIT = FCC_12,
+};
 
 /* A channel mask per se only defines the presence or absence of a channel, not the order.
  * But see AUDIO_INTERLEAVE_* below for the platform convention of order.
@@ -199,27 +278,36 @@ static inline bool audio_is_global_session(audio_session_t session) {
  * that is currently resolved by checking the channel mask, the implementer should look for ways to
  * fix it with additional information outside of the mask.
  */
-typedef uint32_t audio_channel_mask_t;
 
 /* log(2) of maximum number of representations, not part of public API */
 #define AUDIO_CHANNEL_REPRESENTATION_LOG2   2
 
 /* The return value is undefined if the channel mask is invalid. */
-static inline uint32_t audio_channel_mask_get_bits(audio_channel_mask_t channel)
+static inline CONSTEXPR uint32_t audio_channel_mask_get_bits(audio_channel_mask_t channel)
 {
     return channel & ((1 << AUDIO_CHANNEL_COUNT_MAX) - 1);
 }
 
-typedef uint32_t audio_channel_representation_t;
+typedef enum {
+    AUDIO_CHANNEL_REPRESENTATION_POSITION   = 0x0u,
+    AUDIO_CHANNEL_REPRESENTATION_INDEX      = 0x2u,
+} audio_channel_representation_t;
 
 /* The return value is undefined if the channel mask is invalid. */
-static inline audio_channel_representation_t audio_channel_mask_get_representation(
+static inline CONSTEXPR audio_channel_representation_t audio_channel_mask_get_representation(
         audio_channel_mask_t channel)
 {
     // The right shift should be sufficient, but also "and" for safety in case mask is not 32 bits
     return (audio_channel_representation_t)
             ((channel >> AUDIO_CHANNEL_COUNT_MAX) & ((1 << AUDIO_CHANNEL_REPRESENTATION_LOG2) - 1));
 }
+
+#ifdef __cplusplus
+// Some effects use `int32_t` directly for channel mask.
+static inline constexpr uint32_t audio_channel_mask_get_representation(int32_t mask) {
+    return audio_channel_mask_get_representation(static_cast<audio_channel_mask_t>(mask));
+}
+#endif
 
 /* Returns true if the channel mask is valid,
  * or returns false for AUDIO_CHANNEL_NONE, AUDIO_CHANNEL_INVALID, and other invalid values.
@@ -228,7 +316,7 @@ static inline audio_channel_representation_t audio_channel_mask_get_representati
  * or because an input mask has an invalid input bit set.
  * All other APIs that take a channel mask assume that it is valid.
  */
-static inline bool audio_channel_mask_is_valid(audio_channel_mask_t channel)
+static inline CONSTEXPR bool audio_channel_mask_is_valid(audio_channel_mask_t channel)
 {
     uint32_t bits = audio_channel_mask_get_bits(channel);
     audio_channel_representation_t representation = audio_channel_mask_get_representation(channel);
@@ -244,10 +332,87 @@ static inline bool audio_channel_mask_is_valid(audio_channel_mask_t channel)
 }
 
 /* Not part of public API */
-static inline audio_channel_mask_t audio_channel_mask_from_representation_and_bits(
+static inline CONSTEXPR audio_channel_mask_t audio_channel_mask_from_representation_and_bits(
         audio_channel_representation_t representation, uint32_t bits)
 {
     return (audio_channel_mask_t) ((representation << AUDIO_CHANNEL_COUNT_MAX) | bits);
+}
+
+/*
+ * Returns true so long as stereo channels are present in the channel mask.
+ *
+ * This is the minimum constraint for spatialization in Android V.
+ *
+ * Prior to V, AUDIO_CHANNEL_OUT_QUAD was the minimum constraint.
+ * Prior to T, AUDIO_CHANNEL_OUT_5POINT1 was the minimum constraint.
+ *
+ * TODO(b/303920722) rename to audio_is_channel_mask_spatialized() after testing
+ * is complete.
+ * TODO(b/316909431) flagged at caller due to lack of native_bridge flag support.
+ */
+static inline CONSTEXPR bool audio_channel_mask_contains_stereo(audio_channel_mask_t channelMask) {
+    return audio_channel_mask_get_representation(channelMask)
+                == AUDIO_CHANNEL_REPRESENTATION_POSITION
+            && (channelMask & AUDIO_CHANNEL_OUT_STEREO) == AUDIO_CHANNEL_OUT_STEREO;
+}
+
+/*
+ * Returns true so long as Quadraphonic channels (FL, FR, BL, BR)
+ * or (FL, FR, SL, SR) are completely specified
+ * in the channel mask. We expect these 4 channels to be the minimum for
+ * reasonable spatializer effect quality.
+ *
+ * Note, this covers:
+ * AUDIO_CHANNEL_OUT_5POINT1
+ * AUDIO_CHANNEL_OUT_5POINT1POINT4
+ * AUDIO_CHANNEL_OUT_7POINT1
+ * AUDIO_CHANNEL_OUT_7POINT1POINT2
+ * AUDIO_CHANNEL_OUT_7POINT1POINT4
+ * AUDIO_CHANNEL_OUT_9POINT1POINT4
+ * AUDIO_CHANNEL_OUT_9POINT1POINT6
+ * AUDIO_CHANNEL_OUT_13POINT0
+ * AUDIO_CHANNEL_OUT_22POINT2
+ */
+static inline CONSTEXPR bool audio_is_channel_mask_spatialized(audio_channel_mask_t channelMask) {
+    return audio_channel_mask_get_representation(channelMask)
+                == AUDIO_CHANNEL_REPRESENTATION_POSITION
+            && ((channelMask & AUDIO_CHANNEL_OUT_QUAD) == AUDIO_CHANNEL_OUT_QUAD
+                || (channelMask & AUDIO_CHANNEL_OUT_QUAD_SIDE) == AUDIO_CHANNEL_OUT_QUAD_SIDE);
+}
+
+/*
+ * MediaFormat channel masks follow the Java channel mask spec
+ * but might be specified as a native channel mask.  This method
+ * does a "smart" correction to ensure a native channel mask.
+ */
+static inline audio_channel_mask_t
+audio_channel_mask_from_media_format_mask(int32_t channelMaskFromFormat) {
+    // KEY_CHANNEL_MASK follows the android.media.AudioFormat java mask
+    // which is left-bitshifted by 2 relative to the native mask
+    if ((channelMaskFromFormat & 0b11) != 0) {
+        // received an unexpected mask (supposed to follow AudioFormat constants
+        // for output masks with the 2 least-significant bits at 0), but
+        // it may come from an extractor that uses native masks: keeping
+        // the mask as given is ok as it contains at least mono or stereo
+        // and potentially the haptic channels
+        return (audio_channel_mask_t)channelMaskFromFormat;
+    } else {
+        // We exclude bits from the lowest haptic bit all the way to the top of int.
+        // to avoid aliasing.  The remainder bits are position bits
+        // which must be shifted by 2 from Java to get native.
+        //
+        // Using the lowest set bit exclusion AND mask (x - 1), we find
+        // all the bits from lowest set bit to the top is m = x | ~(x - 1).
+        // Using the one's complement to two's complement formula ~x = -x - 1,
+        // we can reduce this to m = x | -x.
+        // (Note -x is also the lowest bit extraction AND mask; i.e. lowest_bit = x & -x).
+        const int32_t EXCLUDE_BITS = AUDIO_CHANNEL_HAPTIC_ALL | -AUDIO_CHANNEL_HAPTIC_ALL;
+        const int32_t positionBits = (channelMaskFromFormat & ~EXCLUDE_BITS) >> 2;
+
+        // Haptic bits are identical between Java and native.
+        const int32_t hapticBits = channelMaskFromFormat & AUDIO_CHANNEL_HAPTIC_ALL;
+        return (audio_channel_mask_t)(positionBits | hapticBits);
+    }
 }
 
 /**
@@ -275,18 +440,6 @@ typedef enum {
     AUDIO_IN_ACOUSTICS_TX_IIR_ENABLE = 0x0004,
     AUDIO_IN_ACOUSTICS_TX_DISABLE    = 0,
 } audio_in_acoustics_t;
-
-typedef uint32_t audio_devices_t;
-/**
- * Stub audio output device. Used in policy configuration file on platforms without audio outputs.
- * This alias value to AUDIO_DEVICE_OUT_DEFAULT is only used in the audio policy context.
- */
-#define AUDIO_DEVICE_OUT_STUB AUDIO_DEVICE_OUT_DEFAULT
-/**
- * Stub audio input device. Used in policy configuration file on platforms without audio inputs.
- * This alias value to AUDIO_DEVICE_IN_DEFAULT is only used in the audio policy context.
- */
-#define AUDIO_DEVICE_IN_STUB AUDIO_DEVICE_IN_DEFAULT
 
 /* Additional information about compressed streams offloaded to
  * hardware playback
@@ -323,7 +476,7 @@ static const audio_offload_info_t AUDIO_INFO_INITIALIZER = {
     /* .version = */ AUDIO_OFFLOAD_INFO_VERSION_CURRENT,
     /* .size = */ sizeof(audio_offload_info_t),
     /* .sample_rate = */ 0,
-    /* .channel_mask = */ 0,
+    /* .channel_mask = */ AUDIO_CHANNEL_NONE,
     /* .format = */ AUDIO_FORMAT_DEFAULT,
     /* .stream_type = */ AUDIO_STREAM_VOICE_CALL,
     /* .bit_rate = */ 0,
@@ -360,7 +513,7 @@ static const audio_config_t AUDIO_CONFIG_INITIALIZER = {
         /* .version = */ AUDIO_OFFLOAD_INFO_VERSION_CURRENT,
         /* .size = */ sizeof(audio_offload_info_t),
         /* .sample_rate = */ 0,
-        /* .channel_mask = */ 0,
+        /* .channel_mask = */ AUDIO_CHANNEL_NONE,
         /* .format = */ AUDIO_FORMAT_DEFAULT,
         /* .stream_type = */ AUDIO_STREAM_VOICE_CALL,
         /* .bit_rate = */ 0,
@@ -391,6 +544,16 @@ static const audio_config_base_t AUDIO_CONFIG_BASE_INITIALIZER = {
     /* .format = */ AUDIO_FORMAT_DEFAULT
 };
 
+
+static inline audio_config_t audio_config_initializer(const  audio_config_base_t *base)
+{
+    audio_config_t config = AUDIO_CONFIG_INITIALIZER;
+    config.sample_rate = base->sample_rate;
+    config.channel_mask = base->channel_mask;
+    config.format = base->format;
+    return config;
+}
+
 /* audio hw module handle functions or structures referencing a module */
 typedef int audio_module_handle_t;
 
@@ -407,9 +570,6 @@ typedef int audio_module_handle_t;
  * the platform can expose them in the audio_policy_configuration.xml file. The audio HAL
  * will then implement gain control functions that will use the following data
  * structures. */
-
-typedef uint32_t audio_gain_mode_t;
-
 
 /* An audio_gain struct is a representation of a gain stage.
  * A gain stage is always attached to an audio port. */
@@ -438,7 +598,7 @@ struct audio_gain_config  {
     int                  values[sizeof(audio_channel_mask_t) * 8]; /* gain values in millibels
                                                for each channel ordered from LSb to MSb in
                                                channel mask. The number of values is 1 in joint
-                                               mode or popcount(channel_mask) */
+                                               mode or __builtin_popcount(channel_mask) */
     unsigned int         ramp_duration_ms; /* ramp duration in ms */
 };
 
@@ -474,6 +634,9 @@ struct audio_port_config_device_ext {
     audio_module_handle_t hw_module;                /* module the device is attached to */
     audio_devices_t       type;                     /* device type (e.g AUDIO_DEVICE_OUT_SPEAKER) */
     char                  address[AUDIO_DEVICE_MAX_ADDRESS_LEN]; /* device address. "" if N/A */
+#ifndef SKIP_SPEAKER_LAYOUT_CHANNEL_MASK_FIELD
+    audio_channel_mask_t  speaker_layout_channel_mask; /* represents physical speaker layout. */
+#endif
 };
 
 /* extension for audio port configuration structure when the audio port is a
@@ -494,6 +657,37 @@ struct audio_port_config_session_ext {
     audio_session_t   session; /* audio session */
 };
 
+typedef enum {
+    AUDIO_PORT_ROLE_NONE = 0,
+    AUDIO_PORT_ROLE_SOURCE = 1,
+    AUDIO_PORT_ROLE_SINK = 2,
+} audio_port_role_t;
+
+typedef enum {
+    AUDIO_PORT_TYPE_NONE = 0,
+    AUDIO_PORT_TYPE_DEVICE = 1,
+    AUDIO_PORT_TYPE_MIX = 2,
+    AUDIO_PORT_TYPE_SESSION = 3,
+} audio_port_type_t;
+
+enum {
+    AUDIO_PORT_CONFIG_SAMPLE_RATE  = 0x1u,
+    AUDIO_PORT_CONFIG_CHANNEL_MASK = 0x2u,
+    AUDIO_PORT_CONFIG_FORMAT       = 0x4u,
+    AUDIO_PORT_CONFIG_GAIN         = 0x8u,
+    AUDIO_PORT_CONFIG_FLAGS        = 0x10u,
+    AUDIO_PORT_CONFIG_ALL          = AUDIO_PORT_CONFIG_SAMPLE_RATE |
+                                     AUDIO_PORT_CONFIG_CHANNEL_MASK |
+                                     AUDIO_PORT_CONFIG_FORMAT |
+                                     AUDIO_PORT_CONFIG_GAIN |
+                                     AUDIO_PORT_CONFIG_FLAGS
+};
+
+typedef enum {
+    AUDIO_LATENCY_LOW = 0,
+    AUDIO_LATENCY_NORMAL = 1,
+} audio_mix_latency_class_t;
+
 /* audio port configuration structure used to specify a particular configuration of
  * an audio port */
 struct audio_port_config {
@@ -505,9 +699,7 @@ struct audio_port_config {
     audio_channel_mask_t     channel_mask; /* channel mask if applicable */
     audio_format_t           format;       /* format if applicable */
     struct audio_gain_config gain;         /* gain to apply if applicable */
-#ifndef AUDIO_NO_SYSTEM_DECLARATIONS
-    union audio_io_flags     flags;        /* framework only: HW_AV_SYNC, DIRECT, ... */
-#endif
+    union audio_io_flags     flags;        /* HW_AV_SYNC, DIRECT, ... */
     union {
         struct audio_port_config_device_ext  device;  /* device specific info */
         struct audio_port_config_mix_ext     mix;     /* mix specific info */
@@ -522,8 +714,19 @@ struct audio_port_config {
 #define AUDIO_PORT_MAX_CHANNEL_MASKS 32
 /* max number of audio formats in audio port */
 #define AUDIO_PORT_MAX_FORMATS 32
+/* max number of audio profiles in audio port. The audio profiles are used in
+ * `struct audio_port_v7`. When converting between `struct audio_port` and
+ * `struct audio_port_v7`, the number of audio profiles in `struct audio_port_v7`
+ * must be the same as the number of formats in `struct audio_port`. Therefore,
+ * the maximum number of audio profiles must be the same as the maximum number
+ * of formats. */
+#define AUDIO_PORT_MAX_AUDIO_PROFILES AUDIO_PORT_MAX_FORMATS
+/* max number of extra audio descriptors in audio port. */
+#define AUDIO_PORT_MAX_EXTRA_AUDIO_DESCRIPTORS AUDIO_PORT_MAX_FORMATS
 /* max number of gain controls in audio port */
 #define AUDIO_PORT_MAX_GAINS 16
+/* max bytes of extra audio descriptor */
+#define EXTRA_AUDIO_DESCRIPTOR_SIZE 32
 
 /* extension for audio port structure when the audio port is a hardware device */
 struct audio_port_device_ext {
@@ -550,25 +753,432 @@ struct audio_port_session_ext {
 };
 
 struct audio_port {
-    audio_port_handle_t      id;                /* port unique ID */
-    audio_port_role_t        role;              /* sink or source */
-    audio_port_type_t        type;              /* device, mix ... */
+    audio_port_handle_t      id;                 /* port unique ID */
+    audio_port_role_t        role;               /* sink or source */
+    audio_port_type_t        type;               /* device, mix ... */
     char                     name[AUDIO_PORT_MAX_NAME_LEN];
-    unsigned int             num_sample_rates;  /* number of sampling rates in following array */
+    unsigned int             num_sample_rates;   /* number of sampling rates in following array */
     unsigned int             sample_rates[AUDIO_PORT_MAX_SAMPLING_RATES];
-    unsigned int             num_channel_masks; /* number of channel masks in following array */
+    unsigned int             num_channel_masks;  /* number of channel masks in following array */
     audio_channel_mask_t     channel_masks[AUDIO_PORT_MAX_CHANNEL_MASKS];
-    unsigned int             num_formats;       /* number of formats in following array */
+    unsigned int             num_formats;        /* number of formats in following array */
     audio_format_t           formats[AUDIO_PORT_MAX_FORMATS];
-    unsigned int             num_gains;         /* number of gains in following array */
+    unsigned int             num_gains;          /* number of gains in following array */
     struct audio_gain        gains[AUDIO_PORT_MAX_GAINS];
-    struct audio_port_config active_config;     /* current audio port configuration */
+    struct audio_port_config active_config;      /* current audio port configuration */
     union {
         struct audio_port_device_ext  device;
         struct audio_port_mix_ext     mix;
         struct audio_port_session_ext session;
     } ext;
 };
+
+typedef enum : int32_t {
+    AUDIO_STANDARD_NONE = 0,
+    AUDIO_STANDARD_EDID = 1,
+    AUDIO_STANDARD_SADB = 2,
+    AUDIO_STANDARD_VSADB = 3,
+} audio_standard_t;
+
+/**
+ * Configuration described by hardware descriptor for a format that is unrecognized
+ * by the platform.
+ */
+struct audio_extra_audio_descriptor {
+    audio_standard_t standard;
+    unsigned int descriptor_length;
+    uint8_t descriptor[EXTRA_AUDIO_DESCRIPTOR_SIZE];
+    audio_encapsulation_type_t encapsulation_type;
+};
+
+/* configurations supported for a certain format */
+struct audio_profile {
+    audio_format_t format;
+    unsigned int num_sample_rates;  /* number of sampling rates in following array */
+    unsigned int sample_rates[AUDIO_PORT_MAX_SAMPLING_RATES];
+    unsigned int num_channel_masks; /* number of channel masks in following array */
+    audio_channel_mask_t channel_masks[AUDIO_PORT_MAX_CHANNEL_MASKS];
+    audio_encapsulation_type_t encapsulation_type;
+};
+
+struct audio_port_v7 {
+    audio_port_handle_t      id;                 /* port unique ID */
+    audio_port_role_t        role;               /* sink or source */
+    audio_port_type_t        type;               /* device, mix ... */
+    char                     name[AUDIO_PORT_MAX_NAME_LEN];
+    unsigned int             num_audio_profiles; /* number of audio profiles in the following
+                                                    array */
+    struct audio_profile     audio_profiles[AUDIO_PORT_MAX_AUDIO_PROFILES];
+    unsigned int             num_extra_audio_descriptors; /* number of extra audio descriptors in
+                                                             the following array */
+    struct audio_extra_audio_descriptor
+            extra_audio_descriptors[AUDIO_PORT_MAX_EXTRA_AUDIO_DESCRIPTORS];
+    unsigned int             num_gains;          /* number of gains in following array */
+    struct audio_gain        gains[AUDIO_PORT_MAX_GAINS];
+    struct audio_port_config active_config;      /* current audio port configuration */
+    union {
+        struct audio_port_device_ext  device;
+        struct audio_port_mix_ext     mix;
+        struct audio_port_session_ext session;
+    } ext;
+};
+
+/* Return true when a given uint8_t array is a valid short audio descriptor. This function just
+ * does basic validation by checking if the first value is not zero.
+ */
+static inline bool audio_is_valid_short_audio_descriptor(const uint8_t *shortAudioDescriptor,
+                                                         size_t length) {
+    return length != 0 && *shortAudioDescriptor != 0;
+}
+
+static inline void audio_populate_audio_port_v7(
+        const struct audio_port *port, struct audio_port_v7 *portV7) {
+    portV7->id = port->id;
+    portV7->role = port->role;
+    portV7->type = port->type;
+    strncpy(portV7->name, port->name, AUDIO_PORT_MAX_NAME_LEN);
+    portV7->name[AUDIO_PORT_MAX_NAME_LEN-1] = '\0';
+    portV7->num_audio_profiles =
+            port->num_formats > AUDIO_PORT_MAX_AUDIO_PROFILES ?
+            AUDIO_PORT_MAX_AUDIO_PROFILES : port->num_formats;
+    for (size_t i = 0; i < portV7->num_audio_profiles; ++i) {
+        portV7->audio_profiles[i].format = port->formats[i];
+        portV7->audio_profiles[i].num_sample_rates = port->num_sample_rates;
+        memcpy(portV7->audio_profiles[i].sample_rates, port->sample_rates,
+                port->num_sample_rates * sizeof(unsigned int));
+        portV7->audio_profiles[i].num_channel_masks = port->num_channel_masks;
+        memcpy(portV7->audio_profiles[i].channel_masks, port->channel_masks,
+                port->num_channel_masks * sizeof(audio_channel_mask_t));
+    }
+    portV7->num_gains = port->num_gains;
+    memcpy(portV7->gains, port->gains, port->num_gains * sizeof(struct audio_gain));
+    memcpy(&portV7->active_config, &port->active_config, sizeof(struct audio_port_config));
+    memcpy(&portV7->ext, &port->ext, sizeof(port->ext));
+}
+
+/* Populate the data in `struct audio_port` using data from `struct audio_port_v7`. As the
+ * `struct audio_port_v7` use audio profiles to describe its capabilities, it may contain more
+ * data for sample rates or channel masks than the data that can be held by `struct audio_port`.
+ * Return true if all the data from `struct audio_port_v7` are converted to `struct audio_port`.
+ * Otherwise, return false.
+ */
+static inline bool audio_populate_audio_port(
+        const struct audio_port_v7 *portV7, struct audio_port *port) {
+    bool allDataConverted = true;
+    port->id = portV7->id;
+    port->role = portV7->role;
+    port->type = portV7->type;
+    strncpy(port->name, portV7->name, AUDIO_PORT_MAX_NAME_LEN);
+    port->name[AUDIO_PORT_MAX_NAME_LEN-1] = '\0';
+    port->num_formats =
+            portV7->num_audio_profiles > AUDIO_PORT_MAX_FORMATS ?
+            AUDIO_PORT_MAX_FORMATS : portV7->num_audio_profiles;
+    port->num_sample_rates = 0;
+    port->num_channel_masks = 0;
+    for (size_t i = 0; i < port->num_formats; ++i) {
+        port->formats[i] = portV7->audio_profiles[i].format;
+        for (size_t j = 0; j < portV7->audio_profiles[i].num_sample_rates; ++j) {
+            size_t k = 0;
+            for (; k < port->num_sample_rates; ++k) {
+                if (port->sample_rates[k] == portV7->audio_profiles[i].sample_rates[j]) {
+                    break;
+                }
+            }
+            if (k == port->num_sample_rates) {
+                if (port->num_sample_rates >= AUDIO_PORT_MAX_SAMPLING_RATES) {
+                    allDataConverted = false;
+                    break;
+                }
+                port->sample_rates[port->num_sample_rates++] =
+                        portV7->audio_profiles[i].sample_rates[j];
+            }
+        }
+        for (size_t j = 0; j < portV7->audio_profiles[i].num_channel_masks; ++j) {
+            size_t k = 0;
+            for (; k < port->num_channel_masks; ++k) {
+                if (port->channel_masks[k] == portV7->audio_profiles[i].channel_masks[j]) {
+                    break;
+                }
+            }
+            if (k == port->num_channel_masks) {
+                if (port->num_channel_masks >= AUDIO_PORT_MAX_CHANNEL_MASKS) {
+                    allDataConverted = false;
+                    break;
+                }
+                port->channel_masks[port->num_channel_masks++] =
+                        portV7->audio_profiles[i].channel_masks[j];
+            }
+        }
+    }
+    port->num_gains = portV7->num_gains;
+    memcpy(port->gains, portV7->gains, port->num_gains * sizeof(struct audio_gain));
+    memcpy(&port->active_config, &portV7->active_config, sizeof(struct audio_port_config));
+    memcpy(&port->ext, &portV7->ext, sizeof(port->ext));
+    return allDataConverted && portV7->num_extra_audio_descriptors == 0;
+}
+
+static inline bool audio_gain_config_are_equal(
+        const struct audio_gain_config *lhs, const struct audio_gain_config *rhs) {
+    if (lhs->mode != rhs->mode) return false;
+    if (lhs->mode & AUDIO_GAIN_MODE_JOINT) {
+        if (lhs->values[0] != rhs->values[0]) return false;
+    }
+    if (lhs->mode & (AUDIO_GAIN_MODE_CHANNELS | AUDIO_GAIN_MODE_RAMP)) {
+        if (lhs->channel_mask != rhs->channel_mask) return false;
+        for (int i = 0; i < __builtin_popcount(lhs->channel_mask); ++i) {
+            if (lhs->values[i] != rhs->values[i]) return false;
+        }
+    }
+    return lhs->ramp_duration_ms == rhs->ramp_duration_ms;
+}
+
+static inline bool audio_has_input_direction(audio_port_type_t type, audio_port_role_t role) {
+    switch (type) {
+    case AUDIO_PORT_TYPE_DEVICE:
+        switch (role) {
+        case AUDIO_PORT_ROLE_SOURCE: return true;
+        case AUDIO_PORT_ROLE_SINK: return false;
+        default: return false;
+        }
+    case AUDIO_PORT_TYPE_MIX:
+        switch (role) {
+        case AUDIO_PORT_ROLE_SOURCE: return false;
+        case AUDIO_PORT_ROLE_SINK: return true;
+        default: return false;
+        }
+    default: return false;
+    }
+}
+
+static inline bool audio_port_config_has_input_direction(const struct audio_port_config *port_cfg) {
+    return audio_has_input_direction(port_cfg->type, port_cfg->role);
+}
+
+static inline bool audio_port_configs_are_equal(
+        const struct audio_port_config *lhs, const struct audio_port_config *rhs) {
+    if (lhs->role != rhs->role || lhs->type != rhs->type) return false;
+    switch (lhs->type) {
+    case AUDIO_PORT_TYPE_NONE: break;
+    case AUDIO_PORT_TYPE_DEVICE:
+        if (lhs->ext.device.hw_module != rhs->ext.device.hw_module ||
+                lhs->ext.device.type != rhs->ext.device.type ||
+#ifndef SKIP_SPEAKER_LAYOUT_CHANNEL_MASK_FIELD
+                lhs->ext.device.speaker_layout_channel_mask !=
+                        rhs->ext.device.speaker_layout_channel_mask ||
+#endif
+                strncmp(lhs->ext.device.address, rhs->ext.device.address,
+                        AUDIO_DEVICE_MAX_ADDRESS_LEN) != 0) {
+            return false;
+        }
+        break;
+    case AUDIO_PORT_TYPE_MIX:
+        if (lhs->ext.mix.hw_module != rhs->ext.mix.hw_module ||
+                lhs->ext.mix.handle != rhs->ext.mix.handle) return false;
+        if (lhs->role == AUDIO_PORT_ROLE_SOURCE &&
+                lhs->ext.mix.usecase.stream != rhs->ext.mix.usecase.stream) return false;
+        else if (lhs->role == AUDIO_PORT_ROLE_SINK &&
+                lhs->ext.mix.usecase.source != rhs->ext.mix.usecase.source) return false;
+        break;
+    case AUDIO_PORT_TYPE_SESSION:
+        if (lhs->ext.session.session != rhs->ext.session.session) return false;
+        break;
+    default: return false;
+    }
+    return
+            lhs->config_mask == rhs->config_mask &&
+            ((lhs->config_mask & AUDIO_PORT_CONFIG_FLAGS) == 0 ||
+                    (audio_port_config_has_input_direction(lhs) ?
+                            lhs->flags.input == rhs->flags.input :
+                            lhs->flags.output == rhs->flags.output)) &&
+            ((lhs->config_mask & AUDIO_PORT_CONFIG_SAMPLE_RATE) == 0 ||
+                    lhs->sample_rate == rhs->sample_rate) &&
+            ((lhs->config_mask & AUDIO_PORT_CONFIG_CHANNEL_MASK) == 0 ||
+                    lhs->channel_mask == rhs->channel_mask) &&
+            ((lhs->config_mask & AUDIO_PORT_CONFIG_FORMAT) == 0 ||
+                    lhs->format == rhs->format) &&
+            ((lhs->config_mask & AUDIO_PORT_CONFIG_GAIN) == 0 ||
+                    audio_gain_config_are_equal(&lhs->gain, &rhs->gain));
+}
+
+static inline bool audio_gains_are_equal(const struct audio_gain* lhs, const struct audio_gain* rhs) {
+    return lhs->mode == rhs->mode &&
+            ((lhs->mode & AUDIO_GAIN_MODE_CHANNELS) != AUDIO_GAIN_MODE_CHANNELS ||
+                    lhs->channel_mask == rhs->channel_mask) &&
+            lhs->min_value == rhs->min_value &&
+            lhs->max_value == rhs->max_value &&
+            lhs->default_value == rhs->default_value &&
+            lhs->step_value == rhs->step_value &&
+            lhs->min_ramp_ms == rhs->min_ramp_ms &&
+            lhs->max_ramp_ms == rhs->max_ramp_ms;
+}
+
+// Define the helper functions of compare two audio_port/audio_port_v7 only in
+// C++ as it is easier to compare the device capabilities.
+#ifdef __cplusplus
+extern "C++" {
+#include <map>
+#include <set>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+namespace {
+
+static inline bool audio_gain_array_contains_all_elements_from(
+        const struct audio_gain gains[], const size_t numGains,
+        const struct audio_gain from[], size_t numFromGains) {
+    for (size_t i = 0; i < numFromGains; ++i) {
+        size_t j = 0;
+        for (;j < numGains; ++j) {
+            if (audio_gains_are_equal(&from[i], &gains[j])) {
+                break;
+            }
+        }
+        if (j == numGains) {
+            return false;
+        }
+    }
+    return true;
+}
+
+template <typename T, std::enable_if_t<std::is_same<T, struct audio_port>::value
+                                    || std::is_same<T, struct audio_port_v7>::value, int> = 0>
+static inline bool audio_ports_base_are_equal(const T* lhs, const T* rhs) {
+    if (lhs->id != rhs->id || lhs->role != rhs->role || lhs->type != rhs->type ||
+            strncmp(lhs->name, rhs->name, AUDIO_PORT_MAX_NAME_LEN) != 0 ||
+            lhs->num_gains != rhs->num_gains) {
+        return false;
+    }
+    switch (lhs->type) {
+    case AUDIO_PORT_TYPE_NONE: break;
+    case AUDIO_PORT_TYPE_DEVICE:
+        if (
+#ifndef AUDIO_NO_SYSTEM_DECLARATIONS
+                lhs->ext.device.encapsulation_modes != rhs->ext.device.encapsulation_modes ||
+                lhs->ext.device.encapsulation_metadata_types !=
+                        rhs->ext.device.encapsulation_metadata_types ||
+#endif
+                lhs->ext.device.hw_module != rhs->ext.device.hw_module ||
+                lhs->ext.device.type != rhs->ext.device.type ||
+                strncmp(lhs->ext.device.address, rhs->ext.device.address,
+                        AUDIO_DEVICE_MAX_ADDRESS_LEN) != 0) {
+            return false;
+        }
+        break;
+    case AUDIO_PORT_TYPE_MIX:
+        if (lhs->ext.mix.hw_module != rhs->ext.mix.hw_module ||
+                lhs->ext.mix.handle != rhs->ext.mix.handle ||
+                lhs->ext.mix.latency_class != rhs->ext.mix.latency_class) {
+            return false;
+        }
+        break;
+    case AUDIO_PORT_TYPE_SESSION:
+        if (lhs->ext.session.session != rhs->ext.session.session) {
+            return false;
+        }
+        break;
+    default:
+        return false;
+    }
+    if (!audio_gain_array_contains_all_elements_from(
+            lhs->gains, lhs->num_gains, rhs->gains, rhs->num_gains) ||
+            !audio_gain_array_contains_all_elements_from(
+                    rhs->gains, rhs->num_gains, lhs->gains, lhs->num_gains)) {
+        return false;
+    }
+    return audio_port_configs_are_equal(&lhs->active_config, &rhs->active_config);
+}
+
+template <typename T, std::enable_if_t<std::is_same<T, audio_format_t>::value
+                                    || std::is_same<T, unsigned int>::value
+                                    || std::is_same<T, audio_channel_mask_t>::value, int> = 0>
+static inline bool audio_capability_arrays_are_equal(
+        const T lhs[], unsigned int lsize, const T rhs[], unsigned int rsize) {
+    std::set<T> lhsSet(lhs, lhs + lsize);
+    std::set<T> rhsSet(rhs, rhs + rsize);
+    return lhsSet == rhsSet;
+}
+
+using AudioProfileMap =
+        std::map<audio_format_t,
+                 std::pair<std::set<unsigned int>, std::set<audio_channel_mask_t>>>;
+static inline AudioProfileMap getAudioProfileMap(
+        const struct audio_profile profiles[], unsigned int size) {
+    AudioProfileMap audioProfiles;
+    for (size_t i = 0; i < size; ++i) {
+        std::set<unsigned int> sampleRates(
+                profiles[i].sample_rates, profiles[i].sample_rates + profiles[i].num_sample_rates);
+        std::set<audio_channel_mask_t> channelMasks(
+                profiles[i].channel_masks,
+                profiles[i].channel_masks + profiles[i].num_channel_masks);
+        audioProfiles.emplace(profiles[i].format, std::make_pair(sampleRates, channelMasks));
+    }
+    return audioProfiles;
+}
+
+static inline bool audio_profile_arrays_are_equal(
+        const struct audio_profile lhs[], unsigned int lsize,
+        const struct audio_profile rhs[], unsigned int rsize) {
+    return getAudioProfileMap(lhs, lsize) == getAudioProfileMap(rhs, rsize);
+}
+
+using ExtraAudioDescriptorMap =std::map<audio_standard_t,
+                                        std::map<audio_encapsulation_type_t,
+                                                 std::set<std::vector<uint8_t>>>>;
+
+static inline ExtraAudioDescriptorMap getExtraAudioDescriptorMap(
+        const struct audio_extra_audio_descriptor extraAudioDescriptors[],
+        unsigned int numExtraAudioDescriptors) {
+    ExtraAudioDescriptorMap extraAudioDescriptorMap;
+    for (unsigned int i = 0; i < numExtraAudioDescriptors; ++i) {
+        extraAudioDescriptorMap[extraAudioDescriptors[i].standard]
+                [extraAudioDescriptors[i].encapsulation_type].insert(
+                std::vector<uint8_t>(
+                        extraAudioDescriptors[i].descriptor,
+                        extraAudioDescriptors[i].descriptor
+                                + extraAudioDescriptors[i].descriptor_length));
+    }
+    return extraAudioDescriptorMap;
+}
+
+static inline bool audio_extra_audio_descriptor_are_equal(
+        const struct audio_extra_audio_descriptor lhs[], unsigned int lsize,
+        const struct audio_extra_audio_descriptor rhs[], unsigned int rsize) {
+    return getExtraAudioDescriptorMap(lhs, lsize) == getExtraAudioDescriptorMap(rhs, rsize);
+}
+
+} // namespace
+
+static inline bool audio_ports_are_equal(
+        const struct audio_port* lhs, const struct audio_port* rhs) {
+    if (!audio_ports_base_are_equal(lhs, rhs)) {
+        return false;
+    }
+    return audio_capability_arrays_are_equal(
+            lhs->formats, lhs->num_formats, rhs->formats, rhs->num_formats) &&
+            audio_capability_arrays_are_equal(
+                    lhs->sample_rates, lhs->num_sample_rates,
+                    rhs->sample_rates, rhs->num_sample_rates) &&
+            audio_capability_arrays_are_equal(
+                    lhs->channel_masks, lhs->num_channel_masks,
+                    rhs->channel_masks, rhs->num_channel_masks);
+}
+
+static inline bool audio_ports_v7_are_equal(
+        const struct audio_port_v7* lhs, const struct audio_port_v7* rhs) {
+    if (!audio_ports_base_are_equal(lhs, rhs)) {
+        return false;
+    }
+    return audio_profile_arrays_are_equal(
+            lhs->audio_profiles, lhs->num_audio_profiles,
+            rhs->audio_profiles, rhs->num_audio_profiles) &&
+           audio_extra_audio_descriptor_are_equal(
+                   lhs->extra_audio_descriptors, lhs->num_extra_audio_descriptors,
+                   rhs->extra_audio_descriptors, rhs->num_extra_audio_descriptors);
+}
+
+} // extern "C++"
+#endif // __cplusplus
 
 /* An audio patch represents a connection between one or more source ports and
  * one or more sink ports. Patches are connected and disconnected by audio policy manager or by
@@ -662,6 +1272,43 @@ typedef struct record_track_metadata {
     char dest_device_address[AUDIO_DEVICE_MAX_ADDRESS_LEN];
 } record_track_metadata_t;
 
+/** Metadata of a playback track for an in stream. */
+typedef struct playback_track_metadata_v7 {
+    struct playback_track_metadata base;
+    audio_channel_mask_t channel_mask;
+    char tags[AUDIO_ATTRIBUTES_TAGS_MAX_SIZE]; /* UTF8 */
+} playback_track_metadata_v7_t;
+
+/** Metadata of a record track for an out stream. */
+typedef struct record_track_metadata_v7 {
+    struct record_track_metadata base;
+    audio_channel_mask_t channel_mask;
+    char tags[AUDIO_ATTRIBUTES_TAGS_MAX_SIZE]; /* UTF8 */
+} record_track_metadata_v7_t;
+
+static inline void playback_track_metadata_to_v7(struct playback_track_metadata_v7 *dst,
+                                                 const struct playback_track_metadata *src) {
+    dst->base = *src;
+    dst->channel_mask = AUDIO_CHANNEL_NONE;
+    dst->tags[0] = '\0';
+}
+
+static inline void playback_track_metadata_from_v7(struct playback_track_metadata *dst,
+                                                   const struct playback_track_metadata_v7 *src) {
+    *dst = src->base;
+}
+
+static inline void record_track_metadata_to_v7(struct record_track_metadata_v7 *dst,
+                                               const struct record_track_metadata *src) {
+    dst->base = *src;
+    dst->channel_mask = AUDIO_CHANNEL_NONE;
+    dst->tags[0] = '\0';
+}
+
+static inline void record_track_metadata_from_v7(struct record_track_metadata *dst,
+                                                 const struct record_track_metadata_v7 *src) {
+    *dst = src->base;
+}
 
 /******************************
  *  Helper functions
@@ -669,8 +1316,9 @@ typedef struct record_track_metadata {
 
 // see also: std::binary_search
 // search range [left, right)
-static inline bool audio_binary_search_uint_array(const uint32_t audio_array[], size_t left,
-                                                  size_t right, uint32_t target)
+static inline bool audio_binary_search_device_array(const audio_devices_t audio_array[],
+                                                    size_t left, size_t right,
+                                                    audio_devices_t target)
 {
     if (right <= left || target < audio_array[left] || target > audio_array[right - 1]) {
         return false;
@@ -707,7 +1355,7 @@ static inline bool audio_is_output_device(audio_devices_t device)
         return true;
     default:
         // Binary seach all devices if the device is not a most common device.
-        return audio_binary_search_uint_array(
+        return audio_binary_search_device_array(
                 AUDIO_DEVICE_OUT_ALL_ARRAY, 0 /*left*/, AUDIO_DEVICE_OUT_CNT, device);
     }
 }
@@ -728,10 +1376,23 @@ static inline bool audio_is_input_device(audio_devices_t device)
         return true;
     default:
         // Binary seach all devices if the device is not a most common device.
-        return audio_binary_search_uint_array(
+        return audio_binary_search_device_array(
                 AUDIO_DEVICE_IN_ALL_ARRAY, 0 /*left*/, AUDIO_DEVICE_IN_CNT, device);
     }
 }
+
+#ifdef __cplusplus
+// Some effects use `uint32_t` directly for device.
+static inline bool audio_is_input_device(uint32_t device) {
+    return audio_is_input_device(static_cast<audio_devices_t>(device));
+}
+// This needs to be used when `audio_is_input_device` is passed
+// to an STL algorithm, as otherwise the compiler can't resolve
+// the overload at that point--the type of the container elements
+// doesn't appear in the predicate parameter type definition.
+const auto audio_call_is_input_device = [](auto x) { return audio_is_input_device(x); };
+#endif
+
 
 // TODO: this function expects a combination of audio device types as parameter. It should
 // be deprecated as audio device types should not be use as bit mask any more since R.
@@ -747,7 +1408,7 @@ static inline bool audio_is_a2dp_in_device(audio_devices_t device)
 
 static inline bool audio_is_a2dp_out_device(audio_devices_t device)
 {
-    return audio_binary_search_uint_array(
+    return audio_binary_search_device_array(
             AUDIO_DEVICE_OUT_ALL_A2DP_ARRAY, 0 /*left*/, AUDIO_DEVICE_OUT_A2DP_CNT, device);
 }
 
@@ -759,13 +1420,13 @@ static inline bool audio_is_a2dp_device(audio_devices_t device)
 
 static inline bool audio_is_bluetooth_out_sco_device(audio_devices_t device)
 {
-    return audio_binary_search_uint_array(
+    return audio_binary_search_device_array(
             AUDIO_DEVICE_OUT_ALL_SCO_ARRAY, 0 /*left*/, AUDIO_DEVICE_OUT_SCO_CNT, device);
 }
 
 static inline bool audio_is_bluetooth_in_sco_device(audio_devices_t device)
 {
-    return audio_binary_search_uint_array(
+    return audio_binary_search_device_array(
             AUDIO_DEVICE_IN_ALL_SCO_ARRAY, 0 /*left*/, AUDIO_DEVICE_IN_SCO_CNT, device);
 }
 
@@ -782,13 +1443,13 @@ static inline bool audio_is_hearing_aid_out_device(audio_devices_t device)
 
 static inline bool audio_is_usb_out_device(audio_devices_t device)
 {
-    return audio_binary_search_uint_array(
+    return audio_binary_search_device_array(
             AUDIO_DEVICE_OUT_ALL_USB_ARRAY, 0 /*left*/, AUDIO_DEVICE_OUT_USB_CNT, device);
 }
 
 static inline bool audio_is_usb_in_device(audio_devices_t device)
 {
-    return audio_binary_search_uint_array(
+    return audio_binary_search_device_array(
             AUDIO_DEVICE_IN_ALL_USB_ARRAY, 0 /*left*/, AUDIO_DEVICE_IN_USB_CNT, device);
 }
 
@@ -806,19 +1467,50 @@ static inline bool audio_is_remote_submix_device(audio_devices_t device)
 
 static inline bool audio_is_digital_out_device(audio_devices_t device)
 {
-    return audio_binary_search_uint_array(
+    return audio_binary_search_device_array(
             AUDIO_DEVICE_OUT_ALL_DIGITAL_ARRAY, 0 /*left*/, AUDIO_DEVICE_OUT_DIGITAL_CNT, device);
 }
 
 static inline bool audio_is_digital_in_device(audio_devices_t device)
 {
-    return audio_binary_search_uint_array(
+    return audio_binary_search_device_array(
             AUDIO_DEVICE_IN_ALL_DIGITAL_ARRAY, 0 /*left*/, AUDIO_DEVICE_IN_DIGITAL_CNT, device);
 }
 
 static inline bool audio_device_is_digital(audio_devices_t device) {
     return audio_is_digital_in_device(device) ||
            audio_is_digital_out_device(device);
+}
+
+static inline bool audio_is_ble_out_device(audio_devices_t device)
+{
+    return audio_binary_search_device_array(
+            AUDIO_DEVICE_OUT_ALL_BLE_ARRAY, 0 /*left*/, AUDIO_DEVICE_OUT_BLE_CNT, device);
+}
+
+static inline bool audio_is_ble_unicast_device(audio_devices_t device)
+{
+    return audio_binary_search_device_array(
+            AUDIO_DEVICE_OUT_BLE_UNICAST_ARRAY, 0 /*left*/,
+            AUDIO_DEVICE_OUT_BLE_UNICAST_CNT, device);
+}
+
+static inline bool audio_is_ble_broadcast_device(audio_devices_t device)
+{
+    return audio_binary_search_device_array(
+            AUDIO_DEVICE_OUT_BLE_BROADCAST_ARRAY, 0 /*left*/,
+            AUDIO_DEVICE_OUT_BLE_BROADCAST_CNT, device);
+}
+
+static inline bool audio_is_ble_in_device(audio_devices_t device)
+{
+    return audio_binary_search_device_array(
+            AUDIO_DEVICE_IN_ALL_BLE_ARRAY, 0 /*left*/, AUDIO_DEVICE_IN_BLE_CNT, device);
+}
+
+static inline bool audio_is_ble_device(audio_devices_t device) {
+    return audio_is_ble_in_device(device) ||
+           audio_is_ble_out_device(device);
 }
 
 /* Returns true if:
@@ -849,7 +1541,7 @@ static inline bool audio_is_input_channel(audio_channel_mask_t channel)
  *  there are no channel bits set which could _not_ correspond to an output channel.
  * Otherwise returns false.
  */
-static inline bool audio_is_output_channel(audio_channel_mask_t channel)
+static inline CONSTEXPR bool audio_is_output_channel(audio_channel_mask_t channel)
 {
     uint32_t bits = audio_channel_mask_get_bits(channel);
     switch (audio_channel_mask_get_representation(channel)) {
@@ -871,7 +1563,7 @@ static inline bool audio_is_output_channel(audio_channel_mask_t channel)
  * it is excluded from the count.
  * Returns zero if the representation is invalid.
  */
-static inline uint32_t audio_channel_count_from_in_mask(audio_channel_mask_t channel)
+static inline CONSTEXPR uint32_t audio_channel_count_from_in_mask(audio_channel_mask_t channel)
 {
     uint32_t bits = audio_channel_mask_get_bits(channel);
     switch (audio_channel_mask_get_representation(channel)) {
@@ -880,11 +1572,19 @@ static inline uint32_t audio_channel_count_from_in_mask(audio_channel_mask_t cha
         bits &= AUDIO_CHANNEL_IN_ALL;
         FALLTHROUGH_INTENDED;
     case AUDIO_CHANNEL_REPRESENTATION_INDEX:
-        return popcount(bits);
+        return __builtin_popcount(bits);
     default:
         return 0;
     }
 }
+
+#ifdef __cplusplus
+// FIXME(b/169889714): buffer_config_t uses `uint32_t` for the mask.
+// A lot of effects code thus use `uint32_t` directly.
+static inline CONSTEXPR uint32_t audio_channel_count_from_in_mask(uint32_t mask) {
+    return audio_channel_count_from_in_mask(static_cast<audio_channel_mask_t>(mask));
+}
+#endif
 
 /* Returns the number of channels from an output channel mask,
  * used in the context of audio output or playback.
@@ -892,7 +1592,7 @@ static inline uint32_t audio_channel_count_from_in_mask(audio_channel_mask_t cha
  * it is excluded from the count.
  * Returns zero if the representation is invalid.
  */
-static inline uint32_t audio_channel_count_from_out_mask(audio_channel_mask_t channel)
+static inline CONSTEXPR uint32_t audio_channel_count_from_out_mask(audio_channel_mask_t channel)
 {
     uint32_t bits = audio_channel_mask_get_bits(channel);
     switch (audio_channel_mask_get_representation(channel)) {
@@ -901,18 +1601,26 @@ static inline uint32_t audio_channel_count_from_out_mask(audio_channel_mask_t ch
         bits &= AUDIO_CHANNEL_OUT_ALL;
         FALLTHROUGH_INTENDED;
     case AUDIO_CHANNEL_REPRESENTATION_INDEX:
-        return popcount(bits);
+        return __builtin_popcount(bits);
     default:
         return 0;
     }
 }
+
+#ifdef __cplusplus
+// FIXME(b/169889714): buffer_config_t uses `uint32_t` for the mask.
+// A lot of effects code thus use `uint32_t` directly.
+static inline CONSTEXPR uint32_t audio_channel_count_from_out_mask(uint32_t mask) {
+    return audio_channel_count_from_out_mask(static_cast<audio_channel_mask_t>(mask));
+}
+#endif
 
 /* Derive a channel mask for index assignment from a channel count.
  * Returns the matching channel mask,
  * or AUDIO_CHANNEL_NONE if the channel count is zero,
  * or AUDIO_CHANNEL_INVALID if the channel count exceeds AUDIO_CHANNEL_COUNT_MAX.
  */
-static inline audio_channel_mask_t audio_channel_mask_for_index_assignment_from_count(
+static inline CONSTEXPR audio_channel_mask_t audio_channel_mask_for_index_assignment_from_count(
         uint32_t channel_count)
 {
     if (channel_count == 0) {
@@ -936,9 +1644,10 @@ static inline audio_channel_mask_t audio_channel_mask_for_index_assignment_from_
  * or AUDIO_CHANNEL_INVALID if the channel count exceeds that of the
  * configurations for which a default output channel mask is defined.
  */
-static inline audio_channel_mask_t audio_channel_out_mask_from_count(uint32_t channel_count)
+static inline CONSTEXPR audio_channel_mask_t audio_channel_out_mask_from_count(
+        uint32_t channel_count)
 {
-    uint32_t bits;
+    uint32_t bits = 0;
     switch (channel_count) {
     case 0:
         return AUDIO_CHANNEL_NONE;
@@ -948,25 +1657,33 @@ static inline audio_channel_mask_t audio_channel_out_mask_from_count(uint32_t ch
     case 2:
         bits = AUDIO_CHANNEL_OUT_STEREO;
         break;
-    case 3: // 2.1
-        bits = AUDIO_CHANNEL_OUT_STEREO | AUDIO_CHANNEL_OUT_LOW_FREQUENCY;
+    case 3:
+        bits = AUDIO_CHANNEL_OUT_2POINT1;
         break;
     case 4: // 4.0
         bits = AUDIO_CHANNEL_OUT_QUAD;
         break;
     case 5: // 5.0
-        bits = AUDIO_CHANNEL_OUT_QUAD | AUDIO_CHANNEL_OUT_FRONT_CENTER;
+        bits = AUDIO_CHANNEL_OUT_PENTA;
         break;
-    case 6: // 5.1
+    case 6:
         bits = AUDIO_CHANNEL_OUT_5POINT1;
         break;
-    case 7: // 6.1
-        bits = AUDIO_CHANNEL_OUT_5POINT1 | AUDIO_CHANNEL_OUT_BACK_CENTER;
+    case 7:
+        bits = AUDIO_CHANNEL_OUT_6POINT1;
         break;
-    case 8:
+    case FCC_8:
         bits = AUDIO_CHANNEL_OUT_7POINT1;
         break;
-    // FIXME FCC_8
+    case 10:
+        bits = AUDIO_CHANNEL_OUT_5POINT1POINT4;
+        break;
+    case FCC_12:
+        bits = AUDIO_CHANNEL_OUT_7POINT1POINT4;
+        break;
+    case FCC_24:
+        bits = AUDIO_CHANNEL_OUT_22POINT2;
+        break;
     default:
         return AUDIO_CHANNEL_INVALID;
     }
@@ -981,9 +1698,10 @@ static inline audio_channel_mask_t audio_channel_out_mask_from_count(uint32_t ch
  * or AUDIO_CHANNEL_INVALID if the channel count exceeds that of the
  * configurations for which a default input channel mask is defined.
  */
-static inline audio_channel_mask_t audio_channel_in_mask_from_count(uint32_t channel_count)
+static inline CONSTEXPR audio_channel_mask_t audio_channel_in_mask_from_count(
+        uint32_t channel_count)
 {
-    uint32_t bits;
+    uint32_t bits = 0;
     switch (channel_count) {
     case 0:
         return AUDIO_CHANNEL_NONE;
@@ -993,15 +1711,10 @@ static inline audio_channel_mask_t audio_channel_in_mask_from_count(uint32_t cha
     case 2:
         bits = AUDIO_CHANNEL_IN_STEREO;
         break;
-    case 3:
-    case 4:
-    case 5:
-    case 6:
-    case 7:
-    case 8:
-        // FIXME FCC_8
-        return audio_channel_mask_for_index_assignment_from_count(channel_count);
     default:
+        if (channel_count <= FCC_LIMIT) {
+            return audio_channel_mask_for_index_assignment_from_count(channel_count);
+        }
         return AUDIO_CHANNEL_INVALID;
     }
     return audio_channel_mask_from_representation_and_bits(
@@ -1031,6 +1744,12 @@ static inline audio_channel_mask_t audio_channel_mask_in_to_out(audio_channel_ma
         return AUDIO_CHANNEL_OUT_MONO;
     case AUDIO_CHANNEL_IN_STEREO:
         return AUDIO_CHANNEL_OUT_STEREO;
+    case AUDIO_CHANNEL_IN_2POINT1:
+        return AUDIO_CHANNEL_OUT_2POINT1;
+    case AUDIO_CHANNEL_IN_QUAD:
+        return AUDIO_CHANNEL_OUT_QUAD;
+    case AUDIO_CHANNEL_IN_PENTA:
+        return AUDIO_CHANNEL_OUT_PENTA;
     case AUDIO_CHANNEL_IN_5POINT1:
         return AUDIO_CHANNEL_OUT_5POINT1;
     case AUDIO_CHANNEL_IN_3POINT1POINT2:
@@ -1053,6 +1772,12 @@ static inline audio_channel_mask_t audio_channel_mask_out_to_in(audio_channel_ma
         return AUDIO_CHANNEL_IN_MONO;
     case AUDIO_CHANNEL_OUT_STEREO:
         return AUDIO_CHANNEL_IN_STEREO;
+    case AUDIO_CHANNEL_OUT_2POINT1:
+        return AUDIO_CHANNEL_IN_2POINT1;
+    case AUDIO_CHANNEL_OUT_QUAD:
+        return AUDIO_CHANNEL_IN_QUAD;
+    case AUDIO_CHANNEL_OUT_PENTA:
+        return AUDIO_CHANNEL_IN_PENTA;
     case AUDIO_CHANNEL_OUT_5POINT1:
         return AUDIO_CHANNEL_IN_5POINT1;
     case AUDIO_CHANNEL_OUT_3POINT1POINT2:
@@ -1068,6 +1793,12 @@ static inline audio_channel_mask_t audio_channel_mask_out_to_in(audio_channel_ma
     }
 }
 
+static inline audio_channel_mask_t audio_channel_mask_out_to_in_index_mask(audio_channel_mask_t out)
+{
+    return audio_channel_mask_for_index_assignment_from_count(
+            audio_channel_count_from_out_mask(out));
+}
+
 static inline bool audio_channel_position_mask_is_out_canonical(audio_channel_mask_t channelMask)
 {
     if (audio_channel_mask_get_representation(channelMask)
@@ -1075,10 +1806,11 @@ static inline bool audio_channel_position_mask_is_out_canonical(audio_channel_ma
         return false;
     }
     const uint32_t audioChannelCount = audio_channel_count_from_out_mask(
-            channelMask & ~AUDIO_CHANNEL_HAPTIC_ALL);
+            (audio_channel_mask_t)(channelMask & ~AUDIO_CHANNEL_HAPTIC_ALL));
     const uint32_t hapticChannelCount = audio_channel_count_from_out_mask(
-            channelMask & AUDIO_CHANNEL_HAPTIC_ALL);
-    return channelMask == (audio_channel_out_mask_from_count(audioChannelCount) |
+            (audio_channel_mask_t)(channelMask & AUDIO_CHANNEL_HAPTIC_ALL));
+    return channelMask == (audio_channel_mask_t)(
+            audio_channel_out_mask_from_count(audioChannelCount) |
             haptic_channel_mask_from_count(hapticChannelCount));
 }
 
@@ -1138,6 +1870,7 @@ static inline bool audio_is_valid_format(audio_format_t format)
         /* not reached */
     case AUDIO_FORMAT_DTS:
     case AUDIO_FORMAT_DTS_HD:
+    case AUDIO_FORMAT_IEC60958:
     case AUDIO_FORMAT_IEC61937:
     case AUDIO_FORMAT_DOLBY_TRUEHD:
     case AUDIO_FORMAT_EVRC:
@@ -1177,7 +1910,16 @@ static inline bool audio_is_valid_format(audio_format_t format)
     case AUDIO_FORMAT_SBC:
     case AUDIO_FORMAT_APTX:
     case AUDIO_FORMAT_APTX_HD:
+        return true;
     case AUDIO_FORMAT_AC4:
+        switch (format) {
+        case AUDIO_FORMAT_AC4:
+        case AUDIO_FORMAT_AC4_L4:
+            return true;
+        default:
+            return false;
+        }
+        /* not reached */
     case AUDIO_FORMAT_LDAC:
         return true;
     case AUDIO_FORMAT_MAT:
@@ -1207,7 +1949,45 @@ static inline bool audio_is_valid_format(audio_format_t format)
     case AUDIO_FORMAT_LHDC:
     case AUDIO_FORMAT_LHDC_LL:
     case AUDIO_FORMAT_APTX_TWSP:
+    case AUDIO_FORMAT_LC3:
+    case AUDIO_FORMAT_APTX_ADAPTIVE_QLEA:
+    case AUDIO_FORMAT_APTX_ADAPTIVE_R4:
         return true;
+    case AUDIO_FORMAT_MPEGH:
+        switch (format) {
+        case AUDIO_FORMAT_MPEGH_BL_L3:
+        case AUDIO_FORMAT_MPEGH_BL_L4:
+        case AUDIO_FORMAT_MPEGH_LC_L3:
+        case AUDIO_FORMAT_MPEGH_LC_L4:
+            return true;
+        default:
+            return false;
+        }
+        /* not reached */
+    case AUDIO_FORMAT_DTS_UHD:
+    case AUDIO_FORMAT_DRA:
+    case AUDIO_FORMAT_DTS_HD_MA:
+    case AUDIO_FORMAT_DTS_UHD_P2:
+        return true;
+    case AUDIO_FORMAT_IAMF:
+        switch (format) {
+        case AUDIO_FORMAT_IAMF_SIMPLE_OPUS:
+        case AUDIO_FORMAT_IAMF_SIMPLE_AAC:
+        case AUDIO_FORMAT_IAMF_SIMPLE_PCM:
+        case AUDIO_FORMAT_IAMF_SIMPLE_FLAC:
+        case AUDIO_FORMAT_IAMF_BASE_OPUS:
+        case AUDIO_FORMAT_IAMF_BASE_AAC:
+        case AUDIO_FORMAT_IAMF_BASE_PCM:
+        case AUDIO_FORMAT_IAMF_BASE_FLAC:
+        case AUDIO_FORMAT_IAMF_BASE_ENHANCED_OPUS:
+        case AUDIO_FORMAT_IAMF_BASE_ENHANCED_AAC:
+        case AUDIO_FORMAT_IAMF_BASE_ENHANCED_PCM:
+        case AUDIO_FORMAT_IAMF_BASE_ENHANCED_FLAC:
+                return true;
+        default:
+                return false;
+        }
+        /* not reached */
     default:
         return false;
     }
@@ -1216,14 +1996,19 @@ static inline bool audio_is_valid_format(audio_format_t format)
 static inline bool audio_is_iec61937_compatible(audio_format_t format)
 {
     switch (format) {
-    case AUDIO_FORMAT_AC3:       // IEC 61937-3:2017
-    case AUDIO_FORMAT_AC4:       // IEC 61937-14:2017
-    case AUDIO_FORMAT_E_AC3:     // IEC 61937-3:2017
-    case AUDIO_FORMAT_E_AC3_JOC: // IEC 61937-3:2017
-    case AUDIO_FORMAT_MAT:       // IEC 61937-9:2017
-    case AUDIO_FORMAT_MAT_1_0:   // IEC 61937-9:2017
-    case AUDIO_FORMAT_MAT_2_0:   // IEC 61937-9:2017
-    case AUDIO_FORMAT_MAT_2_1:   // IEC 61937-9:2017
+    case AUDIO_FORMAT_AC3:         // IEC 61937-3:2017
+    case AUDIO_FORMAT_AC4:         // IEC 61937-14:2017
+    case AUDIO_FORMAT_AC4_L4:      // IEC 61937-14:2017
+    case AUDIO_FORMAT_E_AC3:       // IEC 61937-3:2017
+    case AUDIO_FORMAT_E_AC3_JOC:   // IEC 61937-3:2017
+    case AUDIO_FORMAT_MAT:         // IEC 61937-9:2017
+    case AUDIO_FORMAT_MAT_1_0:     // IEC 61937-9:2017
+    case AUDIO_FORMAT_MAT_2_0:     // IEC 61937-9:2017
+    case AUDIO_FORMAT_MAT_2_1:     // IEC 61937-9:2017
+    case AUDIO_FORMAT_MPEGH_BL_L3: // IEC 61937-13:2018
+    case AUDIO_FORMAT_MPEGH_BL_L4: // IEC 61937-13:2018
+    case AUDIO_FORMAT_MPEGH_LC_L3: // IEC 61937-13:2018
+    case AUDIO_FORMAT_MPEGH_LC_L4: // IEC 61937-13:2018
         return true;
     default:
         return false;
@@ -1293,8 +2078,13 @@ static inline size_t audio_bytes_per_sample(audio_format_t format)
 
 static inline size_t audio_bytes_per_frame(uint32_t channel_count, audio_format_t format)
 {
-    // cannot overflow for reasonable channel_count
-    return channel_count * audio_bytes_per_sample(format);
+    if (audio_has_proportional_frames(format)) {
+        // cannot overflow for reasonable channel_count
+        return channel_count * audio_bytes_per_sample(format);
+    } else {
+        // compressed formats have a frame size of 1 by convention.
+        return sizeof(uint8_t);
+    }
 }
 
 /* converts device address to string sent to audio HAL via set_parameters */
@@ -1315,85 +2105,32 @@ static inline char *audio_device_address_to_parameter(audio_devices_t device, co
     return strdup(param);
 }
 
+static inline bool audio_is_valid_audio_source(audio_source_t audioSource)
+{
+    switch (audioSource) {
+    case AUDIO_SOURCE_MIC:
+    case AUDIO_SOURCE_VOICE_UPLINK:
+    case AUDIO_SOURCE_VOICE_DOWNLINK:
+    case AUDIO_SOURCE_VOICE_CALL:
+    case AUDIO_SOURCE_CAMCORDER:
+    case AUDIO_SOURCE_VOICE_RECOGNITION:
+    case AUDIO_SOURCE_VOICE_COMMUNICATION:
+    case AUDIO_SOURCE_REMOTE_SUBMIX:
+    case AUDIO_SOURCE_UNPROCESSED:
+    case AUDIO_SOURCE_VOICE_PERFORMANCE:
+    case AUDIO_SOURCE_ECHO_REFERENCE:
+    case AUDIO_SOURCE_FM_TUNER:
 #ifndef AUDIO_NO_SYSTEM_DECLARATIONS
-
-static inline bool audio_gain_config_are_equal(
-        const struct audio_gain_config *lhs, const struct audio_gain_config *rhs) {
-    if (lhs->mode != rhs->mode) return false;
-    switch (lhs->mode) {
-    case AUDIO_GAIN_MODE_JOINT:
-        if (lhs->values[0] != rhs->values[0]) return false;
-        break;
-    case AUDIO_GAIN_MODE_CHANNELS:
-    case AUDIO_GAIN_MODE_RAMP:
-        if (lhs->channel_mask != rhs->channel_mask) return false;
-        for (int i = 0; i < popcount(lhs->channel_mask); ++i) {
-            if (lhs->values[i] != rhs->values[i]) return false;
-        }
-        break;
-    default: return false;
-    }
-    return lhs->ramp_duration_ms == rhs->ramp_duration_ms;
-}
-
-static inline bool audio_port_config_has_input_direction(const struct audio_port_config *port_cfg) {
-    switch (port_cfg->type) {
-    case AUDIO_PORT_TYPE_DEVICE:
-        switch (port_cfg->role) {
-        case AUDIO_PORT_ROLE_SOURCE: return true;
-        case AUDIO_PORT_ROLE_SINK: return false;
-        default: return false;
-        }
-    case AUDIO_PORT_TYPE_MIX:
-        switch (port_cfg->role) {
-        case AUDIO_PORT_ROLE_SOURCE: return false;
-        case AUDIO_PORT_ROLE_SINK: return true;
-        default: return false;
-        }
-    default: return false;
+    case AUDIO_SOURCE_HOTWORD:
+#endif // AUDIO_NO_SYSTEM_DECLARATIONS
+    case AUDIO_SOURCE_ULTRASOUND:
+        return true;
+    default:
+        return false;
     }
 }
 
-static inline bool audio_port_configs_are_equal(
-        const struct audio_port_config *lhs, const struct audio_port_config *rhs) {
-    if (lhs->role != rhs->role || lhs->type != rhs->type) return false;
-    switch (lhs->type) {
-    case AUDIO_PORT_TYPE_NONE: break;
-    case AUDIO_PORT_TYPE_DEVICE:
-        if (lhs->ext.device.hw_module != rhs->ext.device.hw_module ||
-                lhs->ext.device.type != rhs->ext.device.type ||
-                strncmp(lhs->ext.device.address, rhs->ext.device.address,
-                        AUDIO_DEVICE_MAX_ADDRESS_LEN) != 0) {
-            return false;
-        }
-        break;
-    case AUDIO_PORT_TYPE_MIX:
-        if (lhs->ext.mix.hw_module != rhs->ext.mix.hw_module ||
-                lhs->ext.mix.handle != rhs->ext.mix.handle) return false;
-        if (lhs->role == AUDIO_PORT_ROLE_SOURCE &&
-                lhs->ext.mix.usecase.stream != rhs->ext.mix.usecase.stream) return false;
-        else if (lhs->role == AUDIO_PORT_ROLE_SINK &&
-                lhs->ext.mix.usecase.source != rhs->ext.mix.usecase.source) return false;
-        break;
-    case AUDIO_PORT_TYPE_SESSION:
-        if (lhs->ext.session.session != rhs->ext.session.session) return false;
-        break;
-    default: return false;
-    }
-    return lhs->config_mask == rhs->config_mask &&
-            ((lhs->config_mask & AUDIO_PORT_CONFIG_SAMPLE_RATE) == 0 ||
-                    lhs->sample_rate == rhs->sample_rate) &&
-            ((lhs->config_mask & AUDIO_PORT_CONFIG_CHANNEL_MASK) == 0 ||
-                    lhs->channel_mask == rhs->channel_mask) &&
-            ((lhs->config_mask & AUDIO_PORT_CONFIG_FORMAT) == 0 ||
-                    lhs->format == rhs->format) &&
-            ((lhs->config_mask & AUDIO_PORT_CONFIG_GAIN) == 0 ||
-                    audio_gain_config_are_equal(&lhs->gain, &rhs->gain)) &&
-            ((lhs->config_mask & AUDIO_PORT_CONFIG_FLAGS) == 0 ||
-                    (audio_port_config_has_input_direction(lhs) ?
-                            lhs->flags.input == rhs->flags.input :
-                            lhs->flags.output == rhs->flags.output));
-}
+#ifndef AUDIO_NO_SYSTEM_DECLARATIONS
 
 static inline bool audio_port_config_has_hw_av_sync(const struct audio_port_config *port_cfg) {
     if (!(port_cfg->config_mask & AUDIO_PORT_CONFIG_FLAGS)) {
@@ -1448,26 +2185,6 @@ typedef struct audio_uuid_s {
     uint8_t node[6];
 } audio_uuid_t;
 
-//TODO: audio_microphone_location_t need to move to HAL v4.0
-typedef enum {
-    AUDIO_MICROPHONE_LOCATION_UNKNOWN = 0,
-    AUDIO_MICROPHONE_LOCATION_MAINBODY = 1,
-    AUDIO_MICROPHONE_LOCATION_MAINBODY_MOVABLE = 2,
-    AUDIO_MICROPHONE_LOCATION_PERIPHERAL = 3,
-    AUDIO_MICROPHONE_LOCATION_CNT = 4,
-} audio_microphone_location_t;
-
-//TODO: audio_microphone_directionality_t need to move to HAL v4.0
-typedef enum {
-    AUDIO_MICROPHONE_DIRECTIONALITY_UNKNOWN = 0,
-    AUDIO_MICROPHONE_DIRECTIONALITY_OMNI = 1,
-    AUDIO_MICROPHONE_DIRECTIONALITY_BI_DIRECTIONAL = 2,
-    AUDIO_MICROPHONE_DIRECTIONALITY_CARDIOID = 3,
-    AUDIO_MICROPHONE_DIRECTIONALITY_HYPER_CARDIOID = 4,
-    AUDIO_MICROPHONE_DIRECTIONALITY_SUPER_CARDIOID = 5,
-    AUDIO_MICROPHONE_DIRECTIONALITY_CNT = 6,
-} audio_microphone_directionality_t;
-
 /* A 3D point which could be used to represent geometric location
  * or orientation of a microphone.
  */
@@ -1482,13 +2199,6 @@ struct audio_microphone_coordinate {
  * that locate on the same peripheral or attachments.
  */
 typedef int audio_microphone_group_t;
-
-typedef enum {
-    AUDIO_MICROPHONE_CHANNEL_MAPPING_UNUSED = 0,
-    AUDIO_MICROPHONE_CHANNEL_MAPPING_DIRECT = 1,
-    AUDIO_MICROPHONE_CHANNEL_MAPPING_PROCESSED = 2,
-    AUDIO_MICROPHONE_CHANNEL_MAPPING_CNT = 3,
-} audio_microphone_channel_mapping_t;
 
 /* the maximum length for the microphone id */
 #define AUDIO_MICROPHONE_ID_MAX_LEN 32
@@ -1526,6 +2236,18 @@ struct audio_microphone_characteristic_t {
     struct audio_microphone_coordinate orientation;
 };
 
+typedef enum {
+#ifndef AUDIO_NO_SYSTEM_DECLARATIONS
+    AUDIO_TIMESTRETCH_FALLBACK_CUT_REPEAT = -1, // (framework only) for speed <1.0 will truncate
+                                                // frames, for speed > 1.0 will repeat frames
+    AUDIO_TIMESTRETCH_FALLBACK_DEFAULT    = 0,  // (framework only) system determines behavior
+#endif
+    /* Set all processed frames to zero. */
+    AUDIO_TIMESTRETCH_FALLBACK_MUTE       = HAL_AUDIO_TIMESTRETCH_FALLBACK_MUTE,
+    /* Stop processing and indicate an error. */
+    AUDIO_TIMESTRETCH_FALLBACK_FAIL       = HAL_AUDIO_TIMESTRETCH_FALLBACK_FAIL,
+} audio_timestretch_fallback_mode_t;
+
 // AUDIO_TIMESTRETCH_SPEED_MIN and AUDIO_TIMESTRETCH_SPEED_MAX define the min and max time stretch
 // speeds supported by the system. These are enforced by the system and values outside this range
 // will result in a runtime error.
@@ -1550,7 +2272,7 @@ struct audio_microphone_characteristic_t {
 #define AUDIO_TIMESTRETCH_PITCH_NORMAL 1.0f
 #define AUDIO_TIMESTRETCH_PITCH_MIN_DELTA 0.0001f
 
-//Limits for AUDIO_TIMESTRETCH_STRETCH_SPEECH mode
+//Limits for AUDIO_TIMESTRETCH_STRETCH_VOICE mode
 #define TIMESTRETCH_SONIC_SPEED_MIN 0.1f
 #define TIMESTRETCH_SONIC_SPEED_MAX 6.0f
 
@@ -1570,6 +2292,73 @@ static const audio_playback_rate_t AUDIO_PLAYBACK_RATE_INITIALIZER = {
     /* .mFallbackMode = */ AUDIO_TIMESTRETCH_FALLBACK_FAIL
 };
 
+#ifndef AUDIO_NO_SYSTEM_DECLARATIONS
+typedef enum {
+    AUDIO_DIRECT_NOT_SUPPORTED = 0x0u,
+    AUDIO_DIRECT_OFFLOAD_SUPPORTED = 0x1u,
+    AUDIO_DIRECT_OFFLOAD_GAPLESS_SUPPORTED = 0x2u,
+    // TODO(b/211628732): may need an enum for direct pcm
+    AUDIO_DIRECT_BITSTREAM_SUPPORTED = 0x4u,
+} audio_direct_mode_t;
+
+// TODO: Deprecate audio_offload_mode_t and use audio_direct_mode_t instead.
+typedef enum {
+    AUDIO_OFFLOAD_NOT_SUPPORTED = AUDIO_DIRECT_NOT_SUPPORTED,
+    AUDIO_OFFLOAD_SUPPORTED = AUDIO_DIRECT_OFFLOAD_SUPPORTED,
+    AUDIO_OFFLOAD_GAPLESS_SUPPORTED = AUDIO_DIRECT_OFFLOAD_GAPLESS_SUPPORTED
+} audio_offload_mode_t;
+#endif // AUDIO_NO_SYSTEM_DECLARATIONS
+
+typedef enum : int32_t {
+    AUDIO_MIXER_BEHAVIOR_INVALID = -1,
+    AUDIO_MIXER_BEHAVIOR_DEFAULT = 0,
+    AUDIO_MIXER_BEHAVIOR_BIT_PERFECT = 1,
+} audio_mixer_behavior_t;
+
+struct audio_mixer_attributes {
+    audio_config_base_t config;
+    audio_mixer_behavior_t mixer_behavior;
+};
+
+typedef struct audio_mixer_attributes audio_mixer_attributes_t;
+
+static const audio_mixer_attributes_t AUDIO_MIXER_ATTRIBUTES_INITIALIZER = {
+    /* .config */ {
+        /* .sample_rate*/ 0,
+        /* .channel_mask*/ AUDIO_CHANNEL_NONE,
+        /* .format */ AUDIO_FORMAT_DEFAULT,
+    },
+    /* .mixer_behavior */ AUDIO_MIXER_BEHAVIOR_DEFAULT,
+};
+
+static inline audio_output_flags_t audio_output_flags_from_mixer_behavior(
+        audio_mixer_behavior_t mixerBehavior) {
+    switch (mixerBehavior) {
+        case AUDIO_MIXER_BEHAVIOR_BIT_PERFECT:
+            return AUDIO_OUTPUT_FLAG_BIT_PERFECT;
+        case AUDIO_MIXER_BEHAVIOR_DEFAULT:
+        default:
+            return AUDIO_OUTPUT_FLAG_NONE;
+    }
+}
+
+inline const char* audio_channel_mask_to_string(audio_channel_mask_t channel_mask) {
+    if (audio_is_input_channel(channel_mask)) {
+        return audio_channel_in_mask_to_string(channel_mask);
+    } else if (audio_is_output_channel(channel_mask)) {
+        return audio_channel_out_mask_to_string(channel_mask);
+    } else {
+        return audio_channel_index_mask_to_string(channel_mask);
+    }
+}
+
+inline CONSTEXPR bool audio_output_is_mixed_output_flags(audio_output_flags_t flags) {
+    return (flags & (AUDIO_OUTPUT_FLAG_DIRECT | AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD |
+            AUDIO_OUTPUT_FLAG_HW_AV_SYNC | AUDIO_OUTPUT_FLAG_IEC958_NONAUDIO |
+            AUDIO_OUTPUT_FLAG_DIRECT_PCM | AUDIO_OUTPUT_FLAG_GAPLESS_OFFLOAD |
+            AUDIO_OUTPUT_FLAG_BIT_PERFECT)) == 0;
+}
+
 __END_DECLS
 
 /**
@@ -1578,11 +2367,16 @@ __END_DECLS
  * a suffix specific to the device.
  * e.g: audio.primary.goldfish.so or audio.a2dp.default.so
  *
+ * "bluetooth" is a newer implementation, combining functionality
+ * from the legacy "a2dp" and "hearing_aid" modules,
+ * and adding support for BT LE devices.
+ *
  * The same module names are used in audio policy configuration files.
  */
 
 #define AUDIO_HARDWARE_MODULE_ID_PRIMARY "primary"
 #define AUDIO_HARDWARE_MODULE_ID_A2DP "a2dp"
+#define AUDIO_HARDWARE_MODULE_ID_BLUETOOTH "bluetooth"
 #define AUDIO_HARDWARE_MODULE_ID_USB "usb"
 #define AUDIO_HARDWARE_MODULE_ID_REMOTE_SUBMIX "r_submix"
 #define AUDIO_HARDWARE_MODULE_ID_CODEC_OFFLOAD "codec_offload"
@@ -1613,13 +2407,24 @@ __END_DECLS
 
 #define AUDIO_PARAMETER_VALUE_ON "on"
 #define AUDIO_PARAMETER_VALUE_OFF "off"
+#define AUDIO_PARAMETER_VALUE_TRUE "true"
+#define AUDIO_PARAMETER_VALUE_FALSE "false"
 
 /**
  *  audio device parameters
  */
 
+/* Used to enable or disable BT SCO */
+#define AUDIO_PARAMETER_KEY_BT_SCO "BT_SCO"
+
 /* BT SCO Noise Reduction + Echo Cancellation parameters */
 #define AUDIO_PARAMETER_KEY_BT_NREC "bt_headset_nrec"
+
+/* Used to enable or disable BT A2DP */
+#define AUDIO_PARAMETER_KEY_BT_A2DP_SUSPENDED "A2dpSuspended"
+
+/* Used to enable or disable BT LE */
+#define AUDIO_PARAMETER_KEY_BT_LE_SUSPENDED "LeAudioSuspended"
 
 /* Get a new HW synchronization source identifier.
  * Return a valid source (positive integer) or AUDIO_HW_SYNC_INVALID if an error occurs
@@ -1632,6 +2437,18 @@ __END_DECLS
 /* User's preferred audio language setting (in ISO 639-2/T three-letter string code)
  * used to select a specific language presentation for next generation audio codecs. */
 #define AUDIO_PARAMETER_KEY_AUDIO_LANGUAGE_PREFERRED "audio_language_preferred"
+
+/* Set to "true" when the AudioOutputDescriptor is closing.
+ * This notification is used by A2DP HAL.
+ * TODO(b/73175392) unify with exiting in the AIDL interface.
+ */
+#define AUDIO_PARAMETER_KEY_CLOSING "closing"
+
+/* Set to "1" on AudioFlinger preExit() for the thread.
+ * This notification is used by the remote submix and A2DP HAL.
+ * TODO(b/73175392) unify with closing in the AIDL interface.
+ */
+#define AUDIO_PARAMETER_KEY_EXITING "exiting"
 
 /**
  *  audio stream parameters
@@ -1676,6 +2493,14 @@ __END_DECLS
 /* Query if HwModule supports reconfiguration of offloaded A2DP codec */
 #define AUDIO_PARAMETER_A2DP_RECONFIG_SUPPORTED "isReconfigA2dpSupported"
 
+/* Query if HwModule supports variable Bluetooth latency control */
+#define AUDIO_PARAMETER_BT_VARIABLE_LATENCY_SUPPORTED "isBtVariableLatencySupported"
+
+/* Reconfigure offloaded LE codec */
+#define AUDIO_PARAMETER_RECONFIG_LE "reconfigLe"
+/* Query if HwModule supports reconfiguration of offloaded LE codec */
+#define AUDIO_PARAMETER_LE_RECONFIG_SUPPORTED "isReconfigLeSupported"
+
 /**
  * For querying device supported encapsulation capabilities. All returned values are integer,
  * which are bit fields composed from using encapsulation capability values as position bits.
@@ -1689,6 +2514,10 @@ __END_DECLS
  */
 #define AUDIO_PARAMETER_DEVICE_SUP_ENCAPSULATION_MODES "supEncapsulationModes"
 #define AUDIO_PARAMETER_DEVICE_SUP_ENCAPSULATION_METADATA_TYPES "supEncapsulationMetadataTypes"
+
+/* Query additional delay in millisecond on each output device. */
+#define AUDIO_PARAMETER_DEVICE_ADDITIONAL_OUTPUT_DELAY "additional_output_device_delay"
+#define AUDIO_PARAMETER_DEVICE_MAX_ADDITIONAL_OUTPUT_DELAY "max_additional_output_device_delay"
 
 /**
  * audio codec parameters
@@ -1706,5 +2535,45 @@ __END_DECLS
 #define AUDIO_OFFLOAD_CODEC_DOWN_SAMPLING  "music_offload_down_sampling"
 #define AUDIO_OFFLOAD_CODEC_DELAY_SAMPLES  "delay_samples"
 #define AUDIO_OFFLOAD_CODEC_PADDING_SAMPLES  "padding_samples"
+
+#define AUDIO_PARAMETER_CLIP_TRANSITION_SUPPORT "aosp.clipTransitionSupport"
+#define AUDIO_PARAMETER_CREATE_MMAP_BUFFER "aosp.createMmapBuffer"
+
+/**
+ * The maximum supported audio sample rate.
+ *
+ * note: The audio policy will use it as the max mixer sample rate for mixed
+ * output and inputs.
+ */
+#define SAMPLE_RATE_HZ_MAX 192000
+
+/**
+ * The minimum supported audio sample rate.
+ */
+#define SAMPLE_RATE_HZ_MIN 4000
+
+/**
+ * The maximum possible audio sample rate as defined in IEC61937.
+ * This definition is for a pre-check before asking the lower level service to
+ * open an AAudio stream.
+ *
+ * note: HDMI supports up to 32 channels at 1536000 Hz.
+ * note: This definition serve the purpose of parameter pre-check, real
+ * validation happens in the audio policy.
+ */
+#define SAMPLE_RATE_HZ_MAX_IEC610937 1600000
+
+/**
+ * The minimum audio sample rate supported by AAudio stream.
+ * This definition is for a pre-check before asking the lower level service to
+ * open an AAudio stream.
+ */
+#define SAMPLE_RATE_HZ_MIN_AAUDIO 8000
+
+/**
+ * Minimum/maximum channel count supported by AAudio stream.
+ */
+#define CHANNEL_COUNT_MIN_AAUDIO 1
+#define CHANNEL_COUNT_MAX_AAUDIO FCC_LIMIT
 
 #endif  // ANDROID_AUDIO_CORE_H

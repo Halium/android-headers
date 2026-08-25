@@ -19,8 +19,32 @@
    this file.
 */
 
-#include <android-version.h>
+#include "android-version.h"
 
 /* CONFIG GOES HERE */
 
 #endif
+
+/* Compatibility for clang-specific annotations when building with GCC */
+#ifndef _Nonnull
+#define _Nonnull
+#endif
+#ifndef _Nullable
+#define _Nullable
+#endif
+
+/* Neutralize __INTRODUCED_IN() API level annotations (clang-only) */
+#ifdef __INTRODUCED_IN
+#undef __INTRODUCED_IN
+#endif
+#define __INTRODUCED_IN(x)
+
+#ifdef __INTRODUCED_IN_NO_GUARD_FOR_NDK
+#undef __INTRODUCED_IN_NO_GUARD_FOR_NDK
+#endif
+#define __INTRODUCED_IN_NO_GUARD_FOR_NDK(x)
+
+#ifdef __DEPRECATED_IN
+#undef __DEPRECATED_IN
+#endif
+#define __DEPRECATED_IN(x, ...)

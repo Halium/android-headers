@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <sys/cdefs.h>
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <unistd.h>

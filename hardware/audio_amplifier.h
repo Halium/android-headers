@@ -132,6 +132,12 @@ typedef struct amplifier_device {
      */
     int (*set_feedback)(struct amplifier_device *device,
         void *adev, uint32_t devices, bool enable);
+
+    /**
+     * Amplifier calibration
+     */
+    int (*calibrate)(struct amplifier_device *device,
+        void *adev);
 } amplifier_device_t;
 
 typedef struct amplifier_module {

@@ -27,7 +27,7 @@ __BEGIN_DECLS
 /*
  * Normally we strip the effects of ALOGV (VERBOSE messages),
  * LOG_FATAL and LOG_FATAL_IF (FATAL assert messages) from the
- * release builds be defining NDEBUG.  You can modify this (for
+ * release builds by defining NDEBUG.  You can modify this (for
  * example with "#define LOG_NDEBUG 0" at the top of your source
  * file) to change that behavior.
  */
@@ -354,23 +354,12 @@ extern int __fake_use_va_args(int, ...);
  *        over Android.
  */
 
-/*
- * Use the per-tag properties "log.tag.<tagname>" to generate a runtime
- * result of non-zero to expose a log. prio is ANDROID_LOG_VERBOSE to
- * ANDROID_LOG_FATAL. default_prio if no property. Undefined behavior if
- * any other value.
- */
-int __android_log_is_loggable(int prio, const char* tag, int default_prio);
-int __android_log_is_loggable_len(int prio, const char* tag, size_t len, int default_prio);
-
 #if LOG_NDEBUG /* Production */
-#define android_testLog(prio, tag)                                           \
-  (__android_log_is_loggable_len(prio, tag, ((tag) && *(tag)) ? strlen(tag) : 0, \
-                                 ANDROID_LOG_DEBUG) != 0)
+#define android_testLog(prio, tag) \
+  (__android_log_is_loggable_len(prio, tag, (tag) ? strlen(tag) : 0, ANDROID_LOG_DEBUG) != 0)
 #else
-#define android_testLog(prio, tag)                                           \
-  (__android_log_is_loggable_len(prio, tag, ((tag) && *(tag)) ? strlen(tag) : 0, \
-                                 ANDROID_LOG_VERBOSE) != 0)
+#define android_testLog(prio, tag) \
+  (__android_log_is_loggable_len(prio, tag, (tag) ? strlen(tag) : 0, ANDROID_LOG_VERBOSE) != 0)
 #endif
 
 #if defined(__clang__)

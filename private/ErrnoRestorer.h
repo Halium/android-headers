@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <sys/cdefs.h>
+
 #include <errno.h>
 
 #include "platform/bionic/macros.h"

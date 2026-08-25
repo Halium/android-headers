@@ -36,15 +36,24 @@
 #ifndef _NDK_CAMERA_METADATA_H
 #define _NDK_CAMERA_METADATA_H
 
+
+/* halium: clang-only _Nullable/_Nonnull and __INTRODUCED_IN() are
+   defined away here, so this header parses under GCC without the consumer
+   having to arrange it. */
+#include "../android-config.h"
+
+#include <stdbool.h>
 #include <stdint.h>
 #include <sys/cdefs.h>
+
+#ifndef __ANDROID_VNDK__
+#include "jni.h"
+#endif  /* __ANDROID_VNDK__ */
 
 #include "NdkCameraError.h"
 #include "NdkCameraMetadataTags.h"
 
 __BEGIN_DECLS
-
-#if __ANDROID_API__ >= 24
 
 /**
  * ACameraMetadata is opaque type that provides access to read-only camera metadata like camera
@@ -93,9 +102,12 @@ typedef struct ACameraMetadata_entry {
     /**
      * The tag identifying the entry.
      *
-     * <p> It is one of the values defined in {@link NdkCameraMetadataTags.h}, and defines how the
+     * <p> It is one of the values defined in
+     * <a href="https://cs.android.com/android/platform/superproject/+/master:frameworks/av/camera/ndk/include/camera/NdkCameraMetadataTags.h">NdkCameraMetadataTags.h</a>
+     * , and defines how the
      * entry should be interpreted and which parts of the API provide it.
-     * See {@link NdkCameraMetadataTags.h} for more details. </p>
+     * See <a href="https://cs.android.com/android/platform/superproject/+/master:frameworks/av/camera/ndk/include/camera/NdkCameraMetadataTags.h">NdkCameraMetadataTags.h</a>
+     * for more details. </p>
      */
     uint32_t tag;
 
@@ -138,9 +150,11 @@ typedef struct ACameraMetadata_const_entry {
     /**
      * The tag identifying the entry.
      *
-     * <p> It is one of the values defined in {@link NdkCameraMetadataTags.h}, and defines how the
+     * <p> It is one of the values defined in <a href="https://cs.android.com/android/platform/superproject/+/master:frameworks/av/camera/ndk/include/camera/NdkCameraMetadataTags.h">NdkCameraMetadataTags.h</a>
+     * , and defines how the
      * entry should be interpreted and which parts of the API provide it.
-     * See {@link NdkCameraMetadataTags.h} for more details. </p>
+     * See <a href="https://cs.android.com/android/platform/superproject/+/master:frameworks/av/camera/ndk/include/camera/NdkCameraMetadataTags.h">NdkCameraMetadataTags.h</a>
+     * for more details. </p>
      */
     uint32_t tag;
 
@@ -182,7 +196,7 @@ typedef struct ACameraMetadata_const_entry {
  * @param metadata the {@link ACameraMetadata} of interest.
  * @param tag the tag value of the camera metadata entry to be get.
  * @param entry the output {@link ACameraMetadata_const_entry} will be filled here if the method
- *        call succeeeds.
+ *        call succeeds.
  *
  * @return <ul>
  *         <li>{@link ACAMERA_OK} if the method call succeeds.</li>
@@ -231,10 +245,6 @@ ACameraMetadata* ACameraMetadata_copy(const ACameraMetadata* src) __INTRODUCED_I
  */
 void ACameraMetadata_free(ACameraMetadata* metadata) __INTRODUCED_IN(24);
 
-#endif /* __ANDROID_API__ >= 24 */
-
-#if __ANDROID_API__ >= 29
-
 /**
  * Helper function to check if a camera is logical multi-camera.
  *
@@ -253,9 +263,38 @@ bool ACameraMetadata_isLogicalMultiCamera(const ACameraMetadata* staticMetadata,
         /*out*/size_t* numPhysicalCameras, /*out*/const char* const** physicalCameraIds)
         __INTRODUCED_IN(29);
 
-#endif /* __ANDROID_API__ >= 29 */
+#ifndef __ANDROID_VNDK__
 
+/**
+ * Return a {@link ACameraMetadata} that references the same data as
+ * <a href="/reference/android/hardware/camera2/CameraMetadata">
+ *     android.hardware.camera2.CameraMetadata</a> from Java API. (e.g., a
+ * <a href="/reference/android/hardware/camera2/CameraCharacteristics">
+ *     android.hardware.camera2.CameraCharacteristics</a>
+ * or <a href="/reference/android/hardware/camera2/CaptureResult">
+ *     android.hardware.camera2.CaptureResult</a>).
+ *
+ * <p>The returned ACameraMetadata must be freed by the application by {@link ACameraMetadata_free}
+ * after application is done using it.</p>
+ *
+ * <p>The ACameraMetadata maintains a reference count to the underlying data, so
+ * it can be used independently of the Java object, and it remains valid even if
+ * the Java metadata is garbage collected.
+ *
+ * @param env the JNI environment.
+ * @param cameraMetadata the source <a href="/reference/android/hardware/camera2/CameraMetadata">
+                         android.hardware.camera2.CameraMetadata </a>from which the
+ *                       returned {@link ACameraMetadata} is a view.
+ *
+ * @return a valid ACameraMetadata pointer or NULL if cameraMetadata is null or not a valid
+ *         instance of <a href="android/hardware/camera2/CameraMetadata">
+ *         android.hardware.camera2.CameraMetadata</a>.
+ *
+ */
+ACameraMetadata* ACameraMetadata_fromCameraMetadata(JNIEnv* env, jobject cameraMetadata)
+        __INTRODUCED_IN(30);
 
+#endif  /* __ANDROID_VNDK__ */
 
 __END_DECLS
 

@@ -36,8 +36,16 @@
 #ifndef _NDK_MEDIA_CODEC_H
 #define _NDK_MEDIA_CODEC_H
 
+
+/* halium: clang-only _Nullable/_Nonnull and __INTRODUCED_IN() are
+   defined away here, so this header parses under GCC without the consumer
+   having to arrange it. */
+#include "../android-config.h"
+
 #include <stdint.h>
 #include <sys/cdefs.h>
+
+#include <android/api-level.h>
 
 #include "NdkMediaCrypto.h"
 #include "NdkMediaError.h"
@@ -61,11 +69,41 @@ struct AMediaCodecBufferInfo {
 typedef struct AMediaCodecBufferInfo AMediaCodecBufferInfo;
 typedef struct AMediaCodecCryptoInfo AMediaCodecCryptoInfo;
 
+
+/**
+ * Definitions of per-buffer flags for operation with NdkMediaCodec.
+ *
+ * The semantics of these enums match those of the same name
+ * in {@link android.media.MediaCodec}.
+ */
 enum {
+    /**
+     * This indicates that the (encoded) buffer marked as such contains
+     * the data for a key frame.
+     *
+     * Semantics are the same as {@link android.media.MediaCodec#BUFFER_FLAG_KEY_FRAME}
+     */
+    AMEDIACODEC_BUFFER_FLAG_KEY_FRAME = 1, // introduced in API 34
     AMEDIACODEC_BUFFER_FLAG_CODEC_CONFIG = 2,
     AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM = 4,
     AMEDIACODEC_BUFFER_FLAG_PARTIAL_FRAME = 8,
+    /**
+     * This indicates that the buffer contains non-media data for the
+     * muxer to process.
+     *
+     * Semantics are the same as {@link android.media.MediaCodec#BUFFER_FLAG_MUXER_DATA}
+     */
+    AMEDIACODEC_BUFFER_FLAG_MUXER_DATA = 16,  // introduced in API 34
+    /**
+     * This indicates that the buffer is decoded and updates the internal state of the decoder,
+     * but does not produce any output buffer.
+     *
+     * Semantics are the same as {@link android.media.MediaCodec#BUFFER_FLAG_DECODE_ONLY}
+     */
+    AMEDIACODEC_BUFFER_FLAG_DECODE_ONLY = 32,  // introduced in API 34
+};
 
+enum {
     AMEDIACODEC_CONFIGURE_FLAG_ENCODE = 1,
     AMEDIACODEC_INFO_OUTPUT_BUFFERS_CHANGED = -3,
     AMEDIACODEC_INFO_OUTPUT_FORMAT_CHANGED = -2,
@@ -114,14 +152,31 @@ typedef void (*AMediaCodecOnAsyncError)(
         int32_t actionCode,
         const char *detail);
 
-struct AMediaCodecOnAsyncNotifyCallback {
+typedef struct AMediaCodecOnAsyncNotifyCallback {
       AMediaCodecOnAsyncInputAvailable  onAsyncInputAvailable;
       AMediaCodecOnAsyncOutputAvailable onAsyncOutputAvailable;
       AMediaCodecOnAsyncFormatChanged   onAsyncFormatChanged;
       AMediaCodecOnAsyncError           onAsyncError;
-};
+} AMediaCodecOnAsyncNotifyCallback;
 
-#if __ANDROID_API__ >= 21
+/**
+ * Called when an output frame has rendered on the output surface.
+ *
+ * \param codec       The codec object that generated this notification.
+ * \param userdata    The user data set at AMediaCodec_setOnFrameRenderedCallback.
+ * \param mediaTimeUs The presentation time (media time) of the frame rendered.
+ *                    This is usually the same as specified in
+ *                    AMediaCodec_queueInputBuffer, but some codecs may alter
+ *                    the media time by applying some time-based transformation,
+ *                    such as frame rate conversion. In that case, presentation
+ *                    time corresponds to the actual output frame rendered.
+ * \param systemNano  The system time when the frame was rendered.
+ */
+typedef void (*AMediaCodecOnFrameRendered)(
+        AMediaCodec *codec,
+        void *userdata,
+        int64_t mediaTimeUs,
+        int64_t systemNano);
 
 /**
  * Create codec by name. Use this if you know the exact codec you want to use.
@@ -323,8 +378,6 @@ media_status_t AMediaCodec_setOutputSurface(AMediaCodec*, ANativeWindow* surface
 media_status_t AMediaCodec_releaseOutputBufferAtTime(
         AMediaCodec *mData, size_t idx, int64_t timestampNs) __INTRODUCED_IN(21);
 
-#if __ANDROID_API__ >= 26
-
 /**
  * Creates a Surface that can be used as the input to encoder, in place of input buffers
  *
@@ -405,10 +458,6 @@ media_status_t AMediaCodec_setParameters(
  */
 media_status_t AMediaCodec_signalEndOfInputStream(AMediaCodec *mData) __INTRODUCED_IN(26);
 
-#endif /* __ANDROID_API__ >= 26 */
-
-#if __ANDROID_API__ >= 28
-
 /**
  * Get format of the buffer. The specified buffer index must have been previously obtained from
  * dequeueOutputBuffer.
@@ -436,17 +485,27 @@ void AMediaCodec_releaseName(AMediaCodec*, char* name) __INTRODUCED_IN(28);
 
 /**
  * Set an asynchronous callback for actionable AMediaCodec events.
- * When asynchronous callback is enabled, the client should not call
+ * When asynchronous callback is enabled, it is an error for the client to call
  * AMediaCodec_dequeueInputBuffer() or AMediaCodec_dequeueOutputBuffer().
  *
- * Also, AMediaCodec_flush() behaves differently in asynchronous mode.
- * After calling AMediaCodec_flush(), you must call AMediaCodec_start() to
- * "resume" receiving input buffers, even if an input surface was created.
+ * AMediaCodec_flush() behaves differently in asynchronous mode.
+ * After calling AMediaCodec_flush(), the client must call AMediaCodec_start() to
+ * "resume" receiving input buffers. Even if the client does not receive
+ * AMediaCodecOnAsyncInputAvailable callbacks from video encoders configured
+ * with an input surface, the client still needs to call AMediaCodec_start()
+ * to resume the input surface to send buffers to the encoders.
+ *
+ * When called with null callback, this method unregisters any previously set callback.
  *
  * Refer to the definition of AMediaCodecOnAsyncNotifyCallback on how each
  * callback function is called and what are specified.
- * The specified userdata is the pointer used when those callback functions are
- * called.
+ * The specified userdata is opaque data which will be passed along
+ * when the callback functions are called. MediaCodec does not look at or alter the
+ * value of userdata. Often it is a pointer to a client-owned object,
+ * and client manages the lifecycle of the object in that case.
+ *
+ * Once the callback is unregistered or the codec is reset / released, the
+ * previously registered callback will not be called.
  *
  * All callbacks are fired on one NDK internal thread.
  * AMediaCodec_setAsyncNotifyCallback should not be called on the callback thread.
@@ -458,6 +517,39 @@ media_status_t AMediaCodec_setAsyncNotifyCallback(
         AMediaCodec*,
         AMediaCodecOnAsyncNotifyCallback callback,
         void *userdata) __INTRODUCED_IN(28);
+
+/**
+ * Registers a callback to be invoked when an output frame is rendered on the output surface.
+ *
+ * This method can be called in any codec state, but will only have an effect in the
+ * Executing state for codecs that render buffers to the output surface.
+ *
+ * This callback is for informational purposes only: to get precise
+ * render timing samples, and can be significantly delayed and batched. Some frames may have
+ * been rendered even if there was no callback generated.
+ *
+ * When called with null callback, this method unregisters any previously set callback.
+ *
+ * Refer to the definition of AMediaCodecOnFrameRendered on how each
+ * callback function is called and what are specified.
+ * The specified userdata is opaque data which will be passed along
+ * when the callback functions are called. MediaCodec does not look at or alter the
+ * value of userdata. Often it is a pointer to a client-owned object,
+ * and client manages the lifecycle of the object in that case.
+ *
+ * Once the callback is unregistered or the codec is reset / released, the
+ * previously registered callback will not be called.
+ *
+ * All callbacks are fired on one NDK internal thread.
+ * AMediaCodec_setOnFrameRenderedCallback should not be called on the callback thread.
+ * No heavy duty task should be performed on callback thread.
+ *
+ * Available since Android T.
+ */
+media_status_t AMediaCodec_setOnFrameRenderedCallback(
+        AMediaCodec*,
+        AMediaCodecOnFrameRendered callback,
+        void *userdata) __INTRODUCED_IN(__ANDROID_API_T__);
 
 /**
  * Release the crypto if applicable.
@@ -492,8 +584,6 @@ bool AMediaCodecActionCode_isRecoverable(int32_t actionCode) __INTRODUCED_IN(28)
  * Available since API level 28.
  */
 bool AMediaCodecActionCode_isTransient(int32_t actionCode) __INTRODUCED_IN(28);
-
-#endif /* __ANDROID_API__ >= 28 */
 
 typedef enum {
     AMEDIACODECRYPTOINFO_MODE_CLEAR = 0,
@@ -591,7 +681,13 @@ media_status_t AMediaCodecCryptoInfo_getClearBytes(AMediaCodecCryptoInfo*, size_
  */
 media_status_t AMediaCodecCryptoInfo_getEncryptedBytes(AMediaCodecCryptoInfo*, size_t *dst) __INTRODUCED_IN(21);
 
-#endif /* __ANDROID_API__ >= 21 */
+extern const char* AMEDIACODEC_KEY_HDR10_PLUS_INFO __INTRODUCED_IN(31);
+extern const char* AMEDIACODEC_KEY_LOW_LATENCY __INTRODUCED_IN(31);
+extern const char* AMEDIACODEC_KEY_OFFSET_TIME __INTRODUCED_IN(31);
+extern const char* AMEDIACODEC_KEY_REQUEST_SYNC_FRAME __INTRODUCED_IN(31);
+extern const char* AMEDIACODEC_KEY_SUSPEND __INTRODUCED_IN(31);
+extern const char* AMEDIACODEC_KEY_SUSPEND_TIME __INTRODUCED_IN(31);
+extern const char* AMEDIACODEC_KEY_VIDEO_BITRATE __INTRODUCED_IN(31);
 
 __END_DECLS
 

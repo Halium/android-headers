@@ -36,6 +36,12 @@
 #ifndef _NDK_IMAGE_READER_H
 #define _NDK_IMAGE_READER_H
 
+
+/* halium: clang-only _Nullable/_Nonnull and __INTRODUCED_IN() are
+   defined away here, so this header parses under GCC without the consumer
+   having to arrange it. */
+#include "../android-config.h"
+
 #include <sys/cdefs.h>
 #ifdef __ANDROID_VNDK__
 #include <cutils/native_handle.h>
@@ -52,8 +58,6 @@ __BEGIN_DECLS
  * {@link ANativeWindow}.
  */
 typedef struct AImageReader AImageReader;
-
-#if __ANDROID_API__ >= 24
 
 /**
  * Create a new reader for images of the desired size and format.
@@ -81,7 +85,7 @@ typedef struct AImageReader AImageReader;
  *            by the user, one of them has to be released before a new {@link AImage} will become
  *            available for access through {@link AImageReader_acquireLatestImage} or
  *            {@link AImageReader_acquireNextImage}. Must be greater than 0.
- * @param reader The created image reader will be filled here if the method call succeeeds.
+ * @param reader The created image reader will be filled here if the method call succeeds.
  *
  * @return <ul>
  *         <li>{@link AMEDIA_OK} if the method call succeeds.</li>
@@ -135,7 +139,7 @@ media_status_t AImageReader_getWindow(AImageReader* reader, /*out*/ANativeWindow
  * Available since API level 24.
  *
  * @param reader The image reader of interest.
- * @param width the default width of the reader will be filled here if the method call succeeeds.
+ * @param width the default width of the reader will be filled here if the method call succeeds.
  *
  * @return <ul>
  *         <li>{@link AMEDIA_OK} if the method call succeeds.</li>
@@ -153,7 +157,7 @@ media_status_t AImageReader_getWidth(const AImageReader* reader, /*out*/int32_t*
  * Available since API level 24.
  *
  * @param reader The image reader of interest.
- * @param height the default height of the reader will be filled here if the method call succeeeds.
+ * @param height the default height of the reader will be filled here if the method call succeeds.
  *
  * @return <ul>
  *         <li>{@link AMEDIA_OK} if the method call succeeds.</li>
@@ -167,7 +171,7 @@ media_status_t AImageReader_getHeight(const AImageReader* reader, /*out*/int32_t
  * Available since API level 24.
  *
  * @param reader The image reader of interest.
- * @param format the fromat of the reader will be filled here if the method call succeeeds. The
+ * @param format the format of the reader will be filled here if the method call succeeds. The
  *                value will be one of the AIMAGE_FORMAT_* enum value defiend in {@link NdkImage.h}.
  *
  * @return <ul>
@@ -183,7 +187,7 @@ media_status_t AImageReader_getFormat(const AImageReader* reader, /*out*/int32_t
  *
  * @param reader The image reader of interest.
  * @param maxImages the maximum number of concurrently acquired images of the reader will be filled
- *                here if the method call succeeeds.
+ *                here if the method call succeeds.
  *
  * @return <ul>
  *         <li>{@link AMEDIA_OK} if the method call succeeds.</li>
@@ -214,7 +218,7 @@ media_status_t AImageReader_getMaxImages(const AImageReader* reader, /*out*/int3
  * Available since API level 24.
  *
  * @param reader The image reader of interest.
- * @param image the acquired {@link AImage} will be filled here if the method call succeeeds.
+ * @param image the acquired {@link AImage} will be filled here if the method call succeeds.
  *
  * @return <ul>
  *         <li>{@link AMEDIA_OK} if the method call succeeds.</li>
@@ -259,7 +263,7 @@ media_status_t AImageReader_acquireNextImage(AImageReader* reader, /*out*/AImage
  * Available since API level 24.
  *
  * @param reader The image reader of interest.
- * @param image the acquired {@link AImage} will be filled here if the method call succeeeds.
+ * @param image the acquired {@link AImage} will be filled here if the method call succeeds.
  *
  * @return <ul>
  *         <li>{@link AMEDIA_OK} if the method call succeeds.</li>
@@ -320,10 +324,6 @@ typedef struct AImageReader_ImageListener {
 media_status_t AImageReader_setImageListener(
         AImageReader* reader, AImageReader_ImageListener* listener) __INTRODUCED_IN(24);
 
-#endif /* __ANDROID_API__ >= 24 */
-
-#if __ANDROID_API__ >= 26
-
 /**
  * AImageReader constructor similar to {@link AImageReader_new} that takes an additional parameter
  * for the consumer usage. All other parameters and the return values are identical to those passed
@@ -334,10 +334,10 @@ media_status_t AImageReader_setImageListener(
  * still acquire images from this {@link AImageReader} and access {@link AHardwareBuffer} via
  * {@link AImage_getHardwareBuffer()}. The {@link AHardwareBuffer} gained this way can then
  * be passed back to hardware (such as GPU or hardware encoder if supported) for future processing.
- * For example, you can obtain an {@link EGLClientBuffer} from the {@link AHardwareBuffer} by using
- * {@link eglGetNativeClientBufferANDROID} extension and pass that {@link EGLClientBuffer} to {@link
- * eglCreateImageKHR} to create an {@link EGLImage} resource type, which may then be bound to a
- * texture via {@link glEGLImageTargetTexture2DOES} on supported devices. This can be useful for
+ * For example, you can obtain an EGLClientBuffer from the {@link AHardwareBuffer} by using
+ * eglGetNativeClientBufferANDROID extension and pass that EGLClientBuffer to
+ * eglCreateImageKHR to create an EGLImage resource type, which may then be bound to a
+ * texture via glEGLImageTargetTexture2DOES on supported devices. This can be useful for
  * transporting textures that may be shared cross-process.</p>
  * <p>In general, when software access to image data is not necessary, an {@link AImageReader}
  * created with {@link AIMAGE_FORMAT_PRIVATE} format is more efficient, compared with {@link
@@ -345,7 +345,7 @@ media_status_t AImageReader_setImageListener(
  *
  * <p>Note that not all format and usage flag combination is supported by the {@link AImageReader},
  * especially if \c format is {@link AIMAGE_FORMAT_PRIVATE}, \c usage must not include either
- * {@link AHARDWAREBUFFER_USAGE_READ_RARELY} or {@link AHARDWAREBUFFER_USAGE_READ_OFTEN}</p>
+ * {@link AHARDWAREBUFFER_USAGE_CPU_READ_RARELY} or {@link AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN}</p>
  *
  * @param width The default width in pixels of the Images that this reader will produce.
  * @param height The default height in pixels of the Images that this reader will produce.
@@ -364,7 +364,7 @@ media_status_t AImageReader_setImageListener(
  *   <th>Compatible usage flags</th>
  * </tr>
  * <tr>
- *   <td>non-{@link AIMAGE_FORMAT_PRIVATE PRIVATE} formats defined in {@link AImage.h}
+ *   <td>non-{@link AIMAGE_FORMAT_PRIVATE} formats defined in {@link NdkImage.h}
  * </td>
  *   <td>{@link AHARDWAREBUFFER_USAGE_CPU_READ_RARELY} or
  *   {@link AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN}</td>
@@ -391,6 +391,44 @@ media_status_t AImageReader_setImageListener(
 media_status_t AImageReader_newWithUsage(
         int32_t width, int32_t height, int32_t format, uint64_t usage, int32_t maxImages,
         /*out*/ AImageReader** reader) __INTRODUCED_IN(26);
+
+/**
+ * AImageReader constructor similar to {@link AImageReader_newWithUsage} that takes
+ * two additional parameters to build the format of the Image. All other parameters
+ * and the return values are identical to those passed to {@link AImageReader_newWithUsage}.
+ *
+ * <p>Instead of passing {@code format} parameter, this constructor accepts
+ * the combination of {@code hardwareBufferFormat} and {@code dataSpace} for the
+ * format of the Image that the reader will produce.</p>
+ *
+ * Available since API level 34.
+ *
+ * @param width The default width in pixels of the Images that this reader will produce.
+ * @param height The default height in pixels of the Images that this reader will produce.
+ * @param usage specifies how the consumer will access the AImage.
+ *              See {@link AImageReader_newWithUsage} parameter description for more details.
+ * @param maxImages The maximum number of images the user will want to access simultaneously.
+ *                  See {@link AImageReader_newWithUsage} parameter description for more details.
+ * @param hardwareBufferFormat The hardware buffer format passed by the producer.
+ *                             This must be one of the AHARDWAREBUFFER_FORMAT_* enum values defined
+ *                             in {@link hardware_buffer.h}.
+ * @param dataSpace The dataspace of the Image passed by the producer.
+ *                  This must be one of the ADATASPACE_* enum values defined in
+ *                  {@link ADataSpace}.
+ * @param reader The created image reader will be filled here if the method call succeeds.
+ *
+ * @return <ul>
+ *         <li>{@link AMEDIA_OK} if the method call succeeds.</li>
+ *         <li>{@link AMEDIA_ERROR_INVALID_PARAMETER} if reader is NULL, or one or more of width,
+ *                 height, maxImages, hardwareBufferFormat or dataSpace arguments
+ *                 is not supported.</li>
+ *         <li>{@link AMEDIA_ERROR_UNKNOWN} if the method fails for some other reasons.</li></ul>
+ *
+ * @see AImageReader_newWithUsage
+ */
+media_status_t AImageReader_newWithDataSpace(int32_t width, int32_t height, uint64_t usage,
+        int32_t maxImages, uint32_t hardwareBufferFormat, int32_t dataSpace,
+        /*out*/ AImageReader** reader) __INTRODUCED_IN(34);
 
 /**
  * Acquire the next {@link AImage} from the image reader's queue asynchronously.
@@ -447,6 +485,10 @@ typedef void (*AImageReader_BufferRemovedCallback)(void* context,
         AImageReader* reader,
         AHardwareBuffer* buffer);
 
+/**
+ * A listener to the AHardwareBuffer removal event, use
+ * {@link AImageReader_setBufferRemovedListener} to register the listener object to AImageReader.
+ */
 typedef struct AImageReader_BufferRemovedListener {
     /// Optional application context passed as the first parameter of the callback.
     void*                      context;
@@ -498,19 +540,25 @@ media_status_t AImageReader_setBufferRemovedListener(
  * Get the native_handle_t corresponding to the ANativeWindow owned by the
  * AImageReader provided.
  *
+ * This is deprecated on devices with vendor API level greater than 34 and
+ * will return AMEDIA_ERROR_UNKNOWN on those devices.
+ * The native_handle_t is no longer used with AIDL interfaces and
+ * ANativeWindow is used directly instead.
+ * Use AImageRead_getWindow to get the ANativeWindow and use that object.
+ *
  * @param reader The image reader of interest.
  * @param handle The output native_handle_t. This native handle is owned by
  *               this image reader.
  *
  * @return AMEDIA_OK if the method call succeeds.
  *         AMEDIA_ERROR_INVALID_PARAMETER if reader or handle are NULL.
- *         AMEDIA_ERROR_UNKNOWN if some other error is encountered.
+ *         AMEDIA_ERROR_UNKNOWN if some other error is encountered or
+ *         the device no longer has android.hidl.token service to
+ *         satisfy the request because it is deprecated.
  */
-media_status_t AImageReader_getWindowNativeHandle(
+[[deprecated]] media_status_t AImageReader_getWindowNativeHandle(
     AImageReader *reader, /* out */native_handle_t **handle);
 #endif
-
-#endif /* __ANDROID_API__ >= 26 */
 
 __END_DECLS
 

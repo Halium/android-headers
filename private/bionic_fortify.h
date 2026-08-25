@@ -28,18 +28,30 @@
 
 #pragma once
 
+#include <sys/cdefs.h>
+
 #include <poll.h> // For struct pollfd.
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/select.h> // For struct fd_set.
 
 #include <async_safe/log.h>
+#include <private/bionic_inline_raise.h>
 
-static inline __noreturn void __fortify_fatal(const char* fmt, ...) {
+//
+// LLVM can't inline variadic functions, and we don't want one definition of
+// this per #include in libc.so, so no `static`.
+//
+inline __noreturn __printflike(1, 2) void __fortify_fatal(const char* fmt, ...) {
   va_list args;
   va_start(args, fmt);
   async_safe_fatal_va_list("FORTIFY", fmt, args);
   va_end(args);
+
+  // Assume we can save a stack frame in the crash, fall back to abort() if not.
+#if !defined(BIONIC_RUST_BAREMETAL)
+  inline_raise(SIGABRT);
+#endif
   abort();
 }
 
@@ -52,7 +64,7 @@ static inline void __check_fd_set(const char* fn, int fd, size_t set_size) {
     __fortify_fatal("%s: file descriptor %d < 0", fn, fd);
   }
   if (__predict_false(fd >= FD_SETSIZE)) {
-    __fortify_fatal("%s: file descriptor %d >= FD_SETSIZE %zu", fn, fd, FD_SETSIZE);
+    __fortify_fatal("%s: file descriptor %d >= FD_SETSIZE %d", fn, fd, FD_SETSIZE);
   }
   if (__predict_false(set_size < sizeof(fd_set))) {
     __fortify_fatal("%s: set size %zu is too small to be an fd_set", fn, set_size);

@@ -28,6 +28,10 @@
  * SUCH DAMAGE.
  */
 
+#pragma once
+
+#include <sys/cdefs.h>
+
 #include <grp.h>
 #include <pwd.h>
 
