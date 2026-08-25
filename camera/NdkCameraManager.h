@@ -44,8 +44,6 @@
 
 __BEGIN_DECLS
 
-#if __ANDROID_API__ >= 24
-
 /**
  * ACameraManager is opaque type that provides access to camera service.
  *
@@ -211,7 +209,8 @@ camera_status_t ACameraManager_unregisterAvailabilityCallback(
  * Query the capabilities of a camera device. These capabilities are
  * immutable for a given camera.
  *
- * <p>See {@link ACameraMetadata} document and {@link NdkCameraMetadataTags.h} for more details.</p>
+ * <p>See {@link ACameraMetadata} document and <a href="https://cs.android.com/android/platform/superproject/+/master:frameworks/av/camera/ndk/include/camera/NdkCameraMetadataTags.h">NdkCameraMetadataTags.h</a>
+ * for more details.</p>
  *
  * <p>The caller must call {@link ACameraMetadata_free} to free the memory of the output
  * characteristics.</p>
@@ -219,7 +218,7 @@ camera_status_t ACameraManager_unregisterAvailabilityCallback(
  * @param manager the {@link ACameraManager} of interest.
  * @param cameraId the ID string of the camera device of interest.
  * @param characteristics the output {@link ACameraMetadata} will be filled here if the method call
- *        succeeeds.
+ *        succeeds.
  *
  * @return <ul>
  *         <li>{@link ACAMERA_OK} if the method call succeeds.</li>
@@ -293,10 +292,6 @@ camera_status_t ACameraManager_openCamera(
         ACameraDevice_StateCallbacks* callback,
         /*out*/ACameraDevice** device) __INTRODUCED_IN(24);
 
-#endif /* __ANDROID_API__ >= 24 */
-
-#if __ANDROID_API__ >= 29
-
 /**
  * Definition of camera access permission change callback.
  *
@@ -332,7 +327,7 @@ typedef void (*ACameraManager_AccessPrioritiesChangedCallback)(void* context);
  * @see ACameraManager_registerExtendedAvailabilityCallback
  */
 typedef struct ACameraManager_ExtendedAvailabilityListener {
-    ///
+    /// Called when a camera becomes available or unavailable
     ACameraManager_AvailabilityCallbacks availabilityCallbacks;
 
     /// Called when there is camera access permission change
@@ -418,8 +413,6 @@ camera_status_t ACameraManager_getTagFromName(ACameraManager *manager, const cha
         const char *name, /*out*/uint32_t *tag)
         __INTRODUCED_IN(29);
 #endif
-
-#endif /* __ANDROID_API__ >= 29 */
 
 __END_DECLS
 

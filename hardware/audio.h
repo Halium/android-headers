@@ -30,12 +30,6 @@
 #include <system/audio.h>
 #include <hardware/audio_effect.h>
 
-#ifdef __ARM_PCS_VFP
-#define FP_ATTRIB __attribute__((pcs("aapcs")))
-#else
-#define FP_ATTRIB
-#endif
-
 __BEGIN_DECLS
 
 /**
@@ -63,7 +57,8 @@ __BEGIN_DECLS
 #define AUDIO_DEVICE_API_VERSION_2_0 HARDWARE_DEVICE_API_VERSION(2, 0)
 #define AUDIO_DEVICE_API_VERSION_3_0 HARDWARE_DEVICE_API_VERSION(3, 0)
 #define AUDIO_DEVICE_API_VERSION_3_1 HARDWARE_DEVICE_API_VERSION(3, 1)
-#define AUDIO_DEVICE_API_VERSION_CURRENT AUDIO_DEVICE_API_VERSION_3_1
+#define AUDIO_DEVICE_API_VERSION_3_2 HARDWARE_DEVICE_API_VERSION(3, 2)
+#define AUDIO_DEVICE_API_VERSION_CURRENT AUDIO_DEVICE_API_VERSION_3_2
 /* Minimal audio HAL version supported by the audio framework */
 #define AUDIO_DEVICE_API_VERSION_MIN AUDIO_DEVICE_API_VERSION_2_0
 
@@ -238,6 +233,24 @@ typedef struct sink_metadata {
     struct record_track_metadata* tracks;
 } sink_metadata_t;
 
+/* HAL version 3.2 and higher only. */
+typedef struct source_metadata_v7 {
+    size_t track_count;
+    /** Array of metadata of each track connected to this source. */
+    struct playback_track_metadata_v7* tracks;
+} source_metadata_v7_t;
+
+/* HAL version 3.2 and higher only. */
+typedef struct sink_metadata_v7 {
+    size_t track_count;
+    /** Array of metadata of each track connected to this sink. */
+    struct record_track_metadata_v7* tracks;
+} sink_metadata_v7_t;
+
+/** output stream callback method to indicate changes in supported latency modes */
+typedef void (*stream_latency_mode_callback_t)(
+        audio_latency_mode_t *modes, size_t num_modes, void *cookie);
+
 /**
  * audio_stream_out is the abstraction interface for the audio output hardware.
  *
@@ -264,7 +277,7 @@ struct audio_stream_out {
      * This method might produce multiple PCM outputs or hardware accelerated
      * codecs, such as MP3 or AAC.
      */
-    int (*set_volume)(struct audio_stream_out *stream, float left, float right) FP_ATTRIB;
+    int (*set_volume)(struct audio_stream_out *stream, float left, float right);
 
     /**
      * Write audio buffer to driver. Returns number of bytes written, or a
@@ -442,7 +455,150 @@ struct audio_stream_out {
     int (*set_event_callback)(struct audio_stream_out *stream,
                               stream_event_callback_t callback,
                               void *cookie);
+
+    /**
+     * Called when the metadata of the stream's source has been changed.
+     * HAL version 3.2 and higher only.
+     * @param source_metadata Description of the audio that is played by the clients.
+     */
+    void (*update_source_metadata_v7)(struct audio_stream_out *stream,
+                                      const struct source_metadata_v7* source_metadata);
+
+    /**
+     * Returns the Dual Mono mode presentation setting.
+     *
+     * \param[in] stream the stream object.
+     * \param[out] mode current setting of Dual Mono mode.
+     *
+     * \return 0 if the position is successfully returned.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*get_dual_mono_mode)(struct audio_stream_out *stream, audio_dual_mono_mode_t *mode);
+
+    /**
+     * Sets the Dual Mono mode presentation on the output device.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] mode selected Dual Mono mode.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*set_dual_mono_mode)(struct audio_stream_out *stream, const audio_dual_mono_mode_t mode);
+
+    /**
+     * Returns the Audio Description Mix level in dB.
+     *
+     * \param[in] stream the stream object.
+     * \param[out] leveldB the current Audio Description Mix Level in dB.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*get_audio_description_mix_level)(struct audio_stream_out *stream, float *leveldB);
+
+    /**
+     * Sets the Audio Description Mix level in dB.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] leveldB Audio Description Mix Level in dB.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*set_audio_description_mix_level)(struct audio_stream_out *stream, const float leveldB);
+
+    /**
+     * Retrieves current playback rate parameters.
+     *
+     * \param[in] stream the stream object.
+     * \param[out] playbackRate current playback parameters.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*get_playback_rate_parameters)(struct audio_stream_out *stream,
+                                        audio_playback_rate_t *playbackRate);
+
+    /**
+     * Sets the playback rate parameters that control playback behavior.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] playbackRate playback parameters.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*set_playback_rate_parameters)(struct audio_stream_out *stream,
+                                        const audio_playback_rate_t *playbackRate);
+
+    /**
+     * Indicates the requested latency mode for this output stream.
+     *
+     * The requested mode can be one of the modes returned by
+     * get_recommended_latency_modes().
+     *
+     * Support for this method is optional but mandated on specific spatial audio
+     * streams indicated by AUDIO_OUTPUT_FLAG_SPATIALIZER flag if they can be routed
+     * to a BT classic sink.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] mode the requested latency mode.
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*set_latency_mode)(struct audio_stream_out *stream, audio_latency_mode_t mode);
+
+    /**
+     * Indicates which latency modes are currently supported on this output stream.
+     * If the transport protocol (e.g Bluetooth A2DP) used by this output stream to reach
+     * the output device supports variable latency modes, the HAL indicates which
+     * modes are currently supported.
+     * The framework can then call setLatencyMode() with one of the supported modes to select
+     * the desired operation mode.
+     *
+     * Support for this method is optional but mandated on specific spatial audio
+     * streams indicated by AUDIO_OUTPUT_FLAG_SPATIALIZER flag if they can be routed
+     * to a BT classic sink.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     * \param[in] stream the stream object.
+     * \param[out] modes the supported latency modes.
+     * \param[in/out] num_modes as input the maximum number of modes to return,
+     *                as output the actual number of modes returned.
+     */
+    int (*get_recommended_latency_modes)(struct audio_stream_out *stream,
+            audio_latency_mode_t *modes, size_t *num_modes);
+
+    /**
+     * Set the callback interface for notifying changes in supported latency modes.
+     *
+     * Calling this method with a null pointer will result in clearing a previously set callback.
+     *
+     * Support for this method is optional but mandated on specific spatial audio
+     * streams indicated by AUDIO_OUTPUT_FLAG_SPATIALIZER flag if they can be routed
+     * to a BT classic sink.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] callback the registered callback or null to unregister.
+     * \param[in] cookie the context to pass when calling the callback.
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*set_latency_mode_callback)(struct audio_stream_out *stream,
+            stream_latency_mode_callback_t callback, void *cookie);
 };
+
 typedef struct audio_stream_out audio_stream_out_t;
 
 struct audio_stream_in {
@@ -455,7 +611,7 @@ struct audio_stream_in {
 
     /** set the input gain for the audio driver. This method is for
      *  for future use */
-    int (*set_gain)(struct audio_stream_in *stream, float gain) FP_ATTRIB;
+    int (*set_gain)(struct audio_stream_in *stream, float gain);
 
     /** Read audio buffer in from audio driver. Returns number of bytes read, or a
      *  negative status_t. If at least one frame was read prior to the error,
@@ -606,6 +762,14 @@ struct audio_stream_in {
      */
     void (*update_sink_metadata)(struct audio_stream_in *stream,
                                  const struct sink_metadata* sink_metadata);
+
+    /**
+     * Called when the metadata of the stream's sink has been changed.
+     * HAL version 3.2 and higher only.
+     * @param sink_metadata Description of the audio that is recorded by the clients.
+     */
+    void (*update_sink_metadata_v7)(struct audio_stream_in *stream,
+                                    const struct sink_metadata_v7* sink_metadata);
 };
 typedef struct audio_stream_in audio_stream_in_t;
 
@@ -700,14 +864,14 @@ struct audio_hw_device {
     int (*init_check)(const struct audio_hw_device *dev);
 
     /** set the audio volume of a voice call. Range is between 0.0 and 1.0 */
-    int (*set_voice_volume)(struct audio_hw_device *dev, float volume) FP_ATTRIB;
+    int (*set_voice_volume)(struct audio_hw_device *dev, float volume);
 
     /**
      * set the audio volume for all audio activities other than voice call.
      * Range between 0.0 and 1.0. If any value other than 0 is returned,
      * the software mixer will emulate this capability.
      */
-    int (*set_master_volume)(struct audio_hw_device *dev, float volume) FP_ATTRIB;
+    int (*set_master_volume)(struct audio_hw_device *dev, float volume);
 
     /**
      * Get the current master volume value for the HAL, if the HAL supports
@@ -716,7 +880,7 @@ struct audio_hw_device {
      * the initial master volume across all HALs.  HALs which do not support
      * this method may leave it set to NULL.
      */
-    int (*get_master_volume)(struct audio_hw_device *dev, float *volume) FP_ATTRIB;
+    int (*get_master_volume)(struct audio_hw_device *dev, float *volume);
 
     /**
      * set_mode is called when the audio mode changes. AUDIO_MODE_NORMAL mode
@@ -871,6 +1035,36 @@ struct audio_hw_device {
      */
     int (*remove_device_effect)(struct audio_hw_device *dev,
                         audio_port_handle_t device, effect_handle_t effect);
+
+    /**
+     * Fills the list of supported attributes for a given audio port.
+     * As input, "port" contains the information (type, role, address etc...)
+     * needed by the HAL to identify the port.
+     * As output, "port" contains possible attributes (sampling rates, formats,
+     * channel masks, gain controllers...) for this port. The possible attributes
+     * are saved as audio profiles, which contains audio format and the supported
+     * sampling rates and channel masks.
+     */
+    int (*get_audio_port_v7)(struct audio_hw_device *dev,
+                             struct audio_port_v7 *port);
+
+    /**
+     * Called when the state of the connection of an external device has been changed.
+     * The "port" parameter is only used as input and besides identifying the device
+     * port, also may contain additional information such as extra audio descriptors.
+     *
+     * HAL version 3.2 and higher only. If the HAL does not implement this method,
+     * it must leave the function entry as null, or return -ENOSYS. In this case
+     * the framework will use 'set_parameters', which can only pass the device address.
+     *
+     * @param dev the audio HAL device context.
+     * @param port device port identification and extra information.
+     * @param connected whether the external device is connected.
+     * @return retval operation completion status.
+     */
+    int (*set_device_connected_state_v7)(struct audio_hw_device *dev,
+                                         struct audio_port_v7 *port,
+                                         bool connected);
 };
 typedef struct audio_hw_device audio_hw_device_t;
 

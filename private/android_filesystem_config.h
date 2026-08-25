@@ -34,23 +34,18 @@
  * partition, from which the system reads passwd and group files.
  */
 
-#ifndef _ANDROID_FILESYSTEM_CONFIG_H_
-#define _ANDROID_FILESYSTEM_CONFIG_H_
+#pragma once
 
-#include <sys/types.h>
-
-#if !defined(__ANDROID_VNDK__) && !defined(EXCLUDE_FS_CONFIG_STRUCTURES)
-#include <private/fs_config.h>
-#endif
-
-/* This is the master Users and Groups config for the platform.
+/* This is the main Users and Groups config for the platform.
  * DO NOT EVER RENUMBER
  */
 
 #define AID_ROOT 0 /* traditional unix root user */
-/* The following are for LTP and should only be used for testing */
-#define AID_DAEMON 1 /* traditional unix daemon owner */
-#define AID_BIN 2    /* traditional unix binaries owner */
+
+/* The following are for tests like LTP and should only be used for testing. */
+#define AID_DAEMON 1 /* Traditional unix daemon owner. */
+#define AID_BIN 2    /* Traditional unix binaries owner. */
+#define AID_SYS 3    /* A group with the same gid on Linux/macOS/Android. */
 
 #define AID_SYSTEM 1000 /* system server */
 
@@ -134,6 +129,19 @@
 #define AID_EXT_DATA_RW 1078      /* GID for app-private data directories on external storage */
 #define AID_EXT_OBB_RW 1079       /* GID for OBB directories on external storage */
 #define AID_CONTEXT_HUB 1080      /* GID for access to the Context Hub */
+#define AID_VIRTUALIZATIONSERVICE 1081 /* VirtualizationService daemon */
+#define AID_ARTD 1082             /* ART Service daemon */
+#define AID_UWB 1083              /* UWB subsystem */
+#define AID_THREAD_NETWORK 1084   /* Thread Network subsystem */
+#define AID_DICED 1085            /* Android's DICE daemon */
+#define AID_DMESGD 1086           /* dmesg parsing daemon for kernel report collection */
+#define AID_JC_WEAVER 1087        /* Javacard Weaver HAL - to manage omapi ARA rules */
+#define AID_JC_STRONGBOX 1088     /* Javacard Strongbox HAL - to manage omapi ARA rules */
+#define AID_JC_IDENTITYCRED 1089  /* Javacard Identity Cred HAL - to manage omapi ARA rules */
+#define AID_SDK_SANDBOX 1090      /* SDK sandbox virtual UID */
+#define AID_SECURITY_LOG_WRITER 1091 /* write to security log */
+#define AID_PRNG_SEEDER 1092         /* PRNG seeder daemon */
+#define AID_UPROBESTATS 1093         /* uid for uprobestats */
 /* Changes to this file must be made in AOSP, *not* in internal branches. */
 
 #define AID_SHELL 2000 /* adb and debug shell user */
@@ -161,6 +169,8 @@
 #define AID_READPROC 3009     /* Allow /proc read access */
 #define AID_WAKELOCK 3010     /* Allow system wakelock read/write access */
 #define AID_UHID 3011         /* Allow read/write to /dev/uhid node */
+#define AID_READTRACEFS 3012  /* Allow tracefs read */
+#define AID_VIRTUALMACHINE 3013 /* Allows VMs to tune for performance*/
 
 /* The range 5000-5999 is also reserved for vendor partition. */
 #define AID_OEM_RESERVED_2_START 5000
@@ -210,6 +220,10 @@
  */
 #define AID_OVERFLOWUID 65534 /* unmapped user in the user namespace */
 
+/* use the ranges below to determine whether a process is sdk sandbox */
+#define AID_SDK_SANDBOX_PROCESS_START 20000 /* start of uids allocated to sdk sandbox processes */
+#define AID_SDK_SANDBOX_PROCESS_END 29999   /* end of uids allocated to sdk sandbox processes */
+
 /* use the ranges below to determine whether a process is isolated */
 #define AID_ISOLATED_START 90000 /* start of uids for fully isolated sandboxed processes */
 #define AID_ISOLATED_END 99999   /* end of uids for fully isolated sandboxed processes */
@@ -224,5 +238,3 @@
  * documented at the top of this header file.
  * Also see build/tools/fs_config for more details.
  */
-
-#endif

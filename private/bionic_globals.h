@@ -29,22 +29,28 @@
 #ifndef _PRIVATE_BIONIC_GLOBALS_H
 #define _PRIVATE_BIONIC_GLOBALS_H
 
+#include <inttypes.h>
+#include <link.h>
+#include <platform/bionic/malloc.h>
+#include <pthread.h>
 #include <stdatomic.h>
 #include <sys/cdefs.h>
-#include <link.h>
-#include <pthread.h>
 
+#include "private/WriteProtected.h"
 #include "private/bionic_allocator.h"
+#include "private/bionic_asm_offsets.h"
 #include "private/bionic_elf_tls.h"
 #include "private/bionic_fdsan.h"
 #include "private/bionic_malloc_dispatch.h"
 #include "private/bionic_vdso.h"
-#include "private/WriteProtected.h"
 
 struct libc_globals {
   vdso_entry vdso[VDSO_END];
   long setjmp_cookie;
   uintptr_t heap_pointer_tag;
+  _Atomic(bool) memtag_stack;
+  _Atomic(bool) decay_time_enabled;
+  _Atomic(bool) memtag;
 
   // In order to allow a complete switch between dispatch tables without
   // the need for copying each function by function in the structure,
@@ -62,9 +68,23 @@ struct libc_globals {
   MallocDispatch malloc_dispatch_table;
 };
 
+struct memtag_dynamic_entries_t {
+  void* memtag_globals;
+  size_t memtag_globalssz;
+  bool has_memtag_mode;
+  unsigned memtag_mode;
+  bool memtag_heap;
+  bool memtag_stack;
+};
+
+#ifdef __aarch64__
+static_assert(OFFSETOF_libc_globals_memtag_stack == offsetof(libc_globals, memtag_stack));
+#endif
+
 __LIBC_HIDDEN__ extern WriteProtected<libc_globals> __libc_globals;
 
 struct abort_msg_t;
+struct crash_detail_page_t;
 namespace gwp_asan {
 struct AllocatorState;
 struct AllocationMetadata;
@@ -93,16 +113,34 @@ struct libc_shared_globals {
   TlsModules tls_modules;
   BionicAllocator tls_allocator;
 
-  // Values passed from the HWASan runtime (via libc.so) to the loader.
+  // Values passed from libc.so to the loader.
   void (*load_hook)(ElfW(Addr) base, const ElfW(Phdr)* phdr, ElfW(Half) phnum) = nullptr;
   void (*unload_hook)(ElfW(Addr) base, const ElfW(Phdr)* phdr, ElfW(Half) phnum) = nullptr;
+  void (*set_target_sdk_version_hook)(int target) = nullptr;
 
   // Values passed from the linker to libc.so.
   const char* init_progname = nullptr;
   char** init_environ = nullptr;
 
-  const gwp_asan::AllocatorState *gwp_asan_state = nullptr;
-  const gwp_asan::AllocationMetadata *gwp_asan_metadata = nullptr;
+  const gwp_asan::AllocatorState* gwp_asan_state = nullptr;
+  const gwp_asan::AllocationMetadata* gwp_asan_metadata = nullptr;
+  bool (*debuggerd_needs_gwp_asan_recovery)(void* fault_addr) = nullptr;
+  void (*debuggerd_gwp_asan_pre_crash_report)(void* fault_addr) = nullptr;
+  void (*debuggerd_gwp_asan_post_crash_report)(void* fault_addr) = nullptr;
+
+  const char* scudo_stack_depot = nullptr;
+  const char* scudo_region_info = nullptr;
+  const char* scudo_ring_buffer = nullptr;
+  size_t scudo_ring_buffer_size = 0;
+  size_t scudo_stack_depot_size = 0;
+
+  HeapTaggingLevel initial_heap_tagging_level = M_HEAP_TAGGING_LEVEL_NONE;
+  bool initial_memtag_stack = false;
+  int64_t heap_tagging_upgrade_timer_sec = 0;
+
+  void (*memtag_stack_dlopen_callback)() = nullptr;
+  pthread_mutex_t crash_detail_page_lock = PTHREAD_MUTEX_INITIALIZER;
+  crash_detail_page_t* crash_detail_page = nullptr;
 };
 
 __LIBC_HIDDEN__ libc_shared_globals* __libc_shared_globals();
@@ -116,7 +154,7 @@ __LIBC_HIDDEN__ void __libc_init_vdso(libc_globals* globals);
 
 #if defined(__i386__)
 __LIBC_HIDDEN__ extern void* __libc_sysinfo;
-__LIBC_HIDDEN__ void __libc_int0x80();
+extern "C" __LIBC_HIDDEN__ void __libc_int0x80();
 __LIBC_HIDDEN__ void __libc_init_sysinfo();
 #endif
 

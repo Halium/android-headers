@@ -111,6 +111,18 @@ struct TlsModule {
   void* soinfo_ptr = nullptr;
 };
 
+// Signature of the callbacks that will be called after DTLS creation and
+// before DTLS destruction.
+typedef void (*dtls_listener_t)(void* dynamic_tls_begin, void* dynamic_tls_end);
+
+// Signature of the thread-exit callbacks.
+typedef void (*thread_exit_cb_t)(void);
+
+struct CallbackHolder {
+  thread_exit_cb_t cb;
+  CallbackHolder* prev;
+};
+
 // Table of the ELF TLS modules. Either the dynamic linker or the static
 // initialization code prepares this table, and it's then used during thread
 // creation and for dynamic TLS lookups.
@@ -128,7 +140,20 @@ struct TlsModules {
   // Pointer to a block of TlsModule objects. The first module has ID 1 and
   // is stored at index 0 in this table.
   size_t module_count = 0;
+  size_t static_module_count = 0;
   TlsModule* module_table = nullptr;
+
+  // Callback to be invoked after a dynamic TLS allocation.
+  dtls_listener_t on_creation_cb = nullptr;
+
+  // Callback to be invoked before a dynamic TLS deallocation.
+  dtls_listener_t on_destruction_cb = nullptr;
+
+  // The first thread-exit callback; inlined to avoid allocation.
+  thread_exit_cb_t first_thread_exit_callback = nullptr;
+
+  // The additional callbacks, if any.
+  CallbackHolder* thread_exit_callback_tail_node = nullptr;
 };
 
 void __init_static_tls(void* static_tls);
@@ -175,3 +200,19 @@ extern "C" void* TLS_GET_ADDR(const TlsIndex* ti) TLS_GET_ADDR_CCONV;
 
 struct bionic_tcb;
 void __free_dynamic_tls(bionic_tcb* tcb);
+void __notify_thread_exit_callbacks();
+
+#if defined(__riscv)
+// TLS_DTV_OFFSET is a constant used in relocation fields, defined in RISC-V ELF Specification[1]
+// The front of the TCB contains a pointer to the DTV, and each pointer in DTV
+// points to 0x800 past the start of a TLS block to make full use of the range
+// of load/store instructions, refer to [2].
+//
+// [1]: RISC-V ELF Specification.
+// https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc#constants
+// [2]: Documentation of TLS data structures
+// https://github.com/riscv-non-isa/riscv-elf-psabi-doc/issues/53
+#define TLS_DTV_OFFSET 0x800
+#else
+#define TLS_DTV_OFFSET 0
+#endif

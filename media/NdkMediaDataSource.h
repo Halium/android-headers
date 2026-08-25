@@ -14,6 +14,14 @@
  * limitations under the License.
  */
 
+/**
+ * @addtogroup Media
+ * @{
+ */
+
+/**
+ * @file NdkMediaDataSource.h
+ */
 
 /*
  * This file defines an NDK API.
@@ -37,8 +45,6 @@ __BEGIN_DECLS
 
 struct AMediaDataSource;
 typedef struct AMediaDataSource AMediaDataSource;
-
-#if __ANDROID_API__ >= 28
 
 /*
  * AMediaDataSource's callbacks will be invoked on an implementation-defined thread
@@ -93,8 +99,6 @@ typedef void (*AMediaDataSourceClose)(void *userdata);
  */
 AMediaDataSource* AMediaDataSource_new() __INTRODUCED_IN(28);
 
-#if __ANDROID_API__ >= 29
-
 /**
  * Called to get an estimate of the number of bytes that can be read from this data source
  * starting at |offset| without blocking for I/O.
@@ -123,8 +127,6 @@ typedef ssize_t (*AMediaDataSourceGetAvailableSize)(void *userdata, off64_t offs
 AMediaDataSource* AMediaDataSource_newUri(const char *uri,
         int numheaders,
         const char * const *key_values) __INTRODUCED_IN(29);
-
-#endif  /*__ANDROID_API__ >= 29 */
 
 /**
  * Delete a previously created media data source.
@@ -185,10 +187,6 @@ void AMediaDataSource_setClose(
         AMediaDataSource*,
         AMediaDataSourceClose) __INTRODUCED_IN(28);
 
-#endif  /*__ANDROID_API__ >= 28 */
-
-#if __ANDROID_API__ >= 29
-
 /**
  * Close the data source, unblock reads, and release associated resources.
  *
@@ -212,8 +210,6 @@ void AMediaDataSource_close(AMediaDataSource*) __INTRODUCED_IN(29);
 void AMediaDataSource_setGetAvailableSize(
         AMediaDataSource*,
         AMediaDataSourceGetAvailableSize) __INTRODUCED_IN(29);
-
-#endif  /*__ANDROID_API__ >= 29 */
 
 __END_DECLS
 
