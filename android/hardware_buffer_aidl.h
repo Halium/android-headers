@@ -30,6 +30,12 @@
 #ifndef ANDROID_HARDWARE_BUFFER_AIDL_H
 #define ANDROID_HARDWARE_BUFFER_AIDL_H
 
+
+/* halium: clang-only _Nullable/_Nonnull and __INTRODUCED_IN() are
+   defined away here, so this header parses under GCC without the consumer
+   having to arrange it. */
+#include "../android-config.h"
+
 #include <android/binder_parcel.h>
 #include <android/hardware_buffer.h>
 #include <sys/cdefs.h>

@@ -36,6 +36,12 @@
 #ifndef _NDK_CAMERA_METADATA_H
 #define _NDK_CAMERA_METADATA_H
 
+
+/* halium: clang-only _Nullable/_Nonnull and __INTRODUCED_IN() are
+   defined away here, so this header parses under GCC without the consumer
+   having to arrange it. */
+#include "../android-config.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/cdefs.h>

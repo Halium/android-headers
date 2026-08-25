@@ -45,6 +45,12 @@
 #ifndef ANDROID_HARDWARE_BUFFER_H
 #define ANDROID_HARDWARE_BUFFER_H
 
+
+/* halium: clang-only _Nullable/_Nonnull and __INTRODUCED_IN() are
+   defined away here, so this header parses under GCC without the consumer
+   having to arrange it. */
+#include "../android-config.h"
+
 #include <android/rect.h>
 #define ADATASPACE_SKIP_LEGACY_DEFINES
 #include <android/data_space.h>

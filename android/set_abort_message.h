@@ -28,6 +28,11 @@
 
 #pragma once
 
+/* halium: clang-only _Nullable/_Nonnull and __INTRODUCED_IN() are defined
+   away here, so this header parses under GCC without the consumer having
+   to arrange it. */
+#include "../android-config.h"
+
 /**
  * @file android/set_abort_message.h
  * @brief The android_set_abort_message() function.

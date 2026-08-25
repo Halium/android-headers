@@ -17,6 +17,12 @@
 #ifndef ANDROID_VNDK_NATIVEWINDOW_AHARDWAREBUFFER_H
 #define ANDROID_VNDK_NATIVEWINDOW_AHARDWAREBUFFER_H
 
+
+/* halium: clang-only _Nullable/_Nonnull and __INTRODUCED_IN() are
+   defined away here, so this header parses under GCC without the consumer
+   having to arrange it. */
+#include "../android-config.h"
+
 // vndk is a superset of the NDK
 #include <android/hardware_buffer.h>
 

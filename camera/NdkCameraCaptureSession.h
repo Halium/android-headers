@@ -43,6 +43,12 @@
 #ifndef _NDK_CAMERA_CAPTURE_SESSION_H
 #define _NDK_CAMERA_CAPTURE_SESSION_H
 
+
+/* halium: clang-only _Nullable/_Nonnull and __INTRODUCED_IN() are
+   defined away here, so this header parses under GCC without the consumer
+   having to arrange it. */
+#include "../android-config.h"
+
 __BEGIN_DECLS
 
 /**

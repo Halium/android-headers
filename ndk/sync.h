@@ -26,6 +26,12 @@
 #ifndef ANDROID_SYNC_H
 #define ANDROID_SYNC_H
 
+
+/* halium: clang-only _Nullable/_Nonnull and __INTRODUCED_IN() are
+   defined away here, so this header parses under GCC without the consumer
+   having to arrange it. */
+#include "../android-config.h"
+
 #include <stdint.h>
 #include <sys/cdefs.h>
 

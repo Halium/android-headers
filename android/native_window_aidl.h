@@ -30,6 +30,12 @@
 #ifndef ANDROID_NATIVE_WINDOW_AIDL_H
 #define ANDROID_NATIVE_WINDOW_AIDL_H
 
+
+/* halium: clang-only _Nullable/_Nonnull and __INTRODUCED_IN() are
+   defined away here, so this header parses under GCC without the consumer
+   having to arrange it. */
+#include "../android-config.h"
+
 #include <android/binder_parcel.h>
 #include <android/native_window.h>
 #include <sys/cdefs.h>
