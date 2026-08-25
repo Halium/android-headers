@@ -19,7 +19,7 @@
    this file.
 */
 
-#include <android-version.h>
+#include "android-version.h"
 
 /* CONFIG GOES HERE */
 
