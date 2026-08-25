@@ -28,12 +28,13 @@
 
 #pragma once
 
+#include <sys/cdefs.h>
+
 #include <android/fdsan.h>
 
 #include <errno.h>
 #include <stdatomic.h>
 #include <string.h>
-#include <sys/cdefs.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/user.h>

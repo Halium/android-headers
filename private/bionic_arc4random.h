@@ -26,8 +26,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _PRIVATE_BIONIC_ARC4RANDOM_H_
-#define _PRIVATE_BIONIC_ARC4RANDOM_H_
+#pragma once
+
+#include <sys/cdefs.h>
 
 #include <stddef.h>
 
@@ -37,5 +38,3 @@
 // wrapper falls back to AT_RANDOM if the kernel doesn't have enough
 // entropy for getrandom(2) or /dev/urandom.
 void __libc_safe_arc4random_buf(void* buf, size_t n);
-
-#endif

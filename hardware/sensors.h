@@ -97,6 +97,11 @@ enum {
 #define SENSOR_PERMISSION_BODY_SENSORS "android.permission.BODY_SENSORS"
 
 /*
+ * The permission to use for reading heart rate sensors.
+ */
+#define SENSOR_PERMISSION_READ_HEART_RATE "android.permission.health.READ_HEART_RATE"
+
+/*
  * sensor flags legacy names
  *
  * please use SENSOR_FLAG_* directly for new implementation.
@@ -192,6 +197,7 @@ enum {
 #define SENSOR_STRING_TYPE_ACCELEROMETER_LIMITED_AXES_UNCALIBRATED "android.sensor.accelerometer_limited_axes_uncalibrated"
 #define SENSOR_STRING_TYPE_GYROSCOPE_LIMITED_AXES_UNCALIBRATED "android.sensor.gyroscope_limited_axes_uncalibrated"
 #define SENSOR_STRING_TYPE_HEADING                      "android.sensor.heading"
+#define SENSOR_STRING_TYPE_MOISTURE_INTRUSION           "android.sensor.moisture_intrusion"
 
 /**
  * Values returned by the accelerometer in various locations in the universe.

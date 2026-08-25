@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2016 The Android Open Source Project
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,47 +30,56 @@
 
 #include <sys/cdefs.h>
 
-#include <signal.h>
+#include <ctype.h>
+#include <stdint.h>
+#include <wchar.h>
 
-// Android's 32-bit ABI shipped with a sigset_t too small to include any
-// of the realtime signals, so we have both sigset_t and sigset64_t. Many
-// new system calls only accept a sigset64_t, so this helps paper over
-// the difference at zero cost to LP64 in most cases after the optimizer
-// removes the unnecessary temporary `ptr`.
-struct SigSetConverter {
- public:
-  SigSetConverter(const sigset_t* s) : SigSetConverter(const_cast<sigset_t*>(s)) {}
-
-  SigSetConverter(sigset_t* s) {
-#if defined(__LP64__)
-    // sigset_t == sigset64_t on LP64.
-    ptr = s;
-#else
-    sigset64 = {};
-    if (s != nullptr) {
-      original_ptr = s;
-      sigset = *s;
-      ptr = &sigset64;
-    } else {
-      ptr = nullptr;
-    }
-#endif
-  }
-
-  void copy_out() {
-#if defined(__LP64__)
-    // We used the original pointer directly, so no copy needed.
-#else
-    *original_ptr = sigset;
-#endif
-  }
-
-  sigset64_t* ptr;
-
- private:
-  [[maybe_unused]] sigset_t* original_ptr;
-  union {
-    sigset_t sigset;
-    sigset64_t sigset64;
-  };
+enum UCharCategory {
+  U_NON_SPACING_MARK = 6,
+  U_ENCLOSING_MARK = 7,
+  U_DECIMAL_NUMBER = 9,
+  U_CONTROL_CHAR = 15,
+  U_FORMAT_CHAR = 16,
+  U_DASH_PUNCTUATION = 19,
+  U_OTHER_PUNCTUATION = 23,
 };
+
+enum UEastAsianWidth {
+  U_EA_NEUTRAL,
+  U_EA_AMBIGUOUS,
+  U_EA_HALFWIDTH,
+  U_EA_FULLWIDTH,
+  U_EA_NARROW,
+  U_EA_WIDE,
+};
+
+enum UHangulSyllableType {
+  U_HST_NOT_APPLICABLE,
+  U_HST_LEADING_JAMO,
+  U_HST_VOWEL_JAMO,
+  U_HST_TRAILING_JAMO,
+  U_HST_LV_SYLLABLE,
+  U_HST_LVT_SYLLABLE,
+};
+
+__BEGIN_DECLS
+
+uint8_t __icu4x_bionic_general_category(uint32_t cp);
+uint8_t __icu4x_bionic_east_asian_width(uint32_t cp);
+uint8_t __icu4x_bionic_hangul_syllable_type(uint32_t cp);
+
+bool __icu4x_bionic_is_alphabetic(uint32_t cp);
+bool __icu4x_bionic_is_default_ignorable_code_point(uint32_t cp);
+bool __icu4x_bionic_is_lowercase(uint32_t cp);
+bool __icu4x_bionic_is_alnum(uint32_t cp);
+bool __icu4x_bionic_is_blank(uint32_t cp);
+bool __icu4x_bionic_is_graph(uint32_t cp);
+bool __icu4x_bionic_is_print(uint32_t cp);
+bool __icu4x_bionic_is_xdigit(uint32_t cp);
+bool __icu4x_bionic_is_white_space(uint32_t cp);
+bool __icu4x_bionic_is_uppercase(uint32_t cp);
+
+uint32_t __icu4x_bionic_to_upper(uint32_t ch);
+uint32_t __icu4x_bionic_to_lower(uint32_t ch);
+
+__END_DECLS

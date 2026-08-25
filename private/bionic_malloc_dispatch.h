@@ -26,8 +26,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _PRIVATE_BIONIC_MALLOC_DISPATCH_H
-#define _PRIVATE_BIONIC_MALLOC_DISPATCH_H
+#pragma once
+
+#include <sys/cdefs.h>
 
 #include <stddef.h>
 #include <stdint.h>
@@ -77,5 +78,3 @@ struct MallocDispatch {
   MallocAlignedAlloc aligned_alloc;
   MallocMallocInfo malloc_info;
 } __attribute__((aligned(32)));
-
-#endif

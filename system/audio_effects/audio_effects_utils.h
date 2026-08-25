@@ -23,6 +23,7 @@
 #include <sstream>
 #include <string>
 #include <sys/types.h>
+#include <type_traits>
 #include <utils/Errors.h>
 
 #include <system/audio_effect.h>
@@ -254,6 +255,107 @@ class EffectParamWriter : public EffectParamReader {
   size_t mParamWOffset = 0;
   size_t mValueWOffset = 0;
 };
+
+inline std::string ToString(const audio_uuid_t& uuid) {
+    char str[64];
+    snprintf(str, sizeof(str), "%08x-%04x-%04x-%04x-%02x%02x%02x%02x%02x%02x",
+             uuid.timeLow, uuid.timeMid, uuid.timeHiAndVersion, uuid.clockSeq,
+             uuid.node[0], uuid.node[1], uuid.node[2], uuid.node[3],
+             uuid.node[4], uuid.node[5]);
+    return str;
+}
+
+inline bool operator==(const audio_uuid_t& lhs, const audio_uuid_t& rhs) {
+  return lhs.timeLow == rhs.timeLow && lhs.timeMid == rhs.timeMid &&
+         lhs.timeHiAndVersion == rhs.timeHiAndVersion &&
+         lhs.clockSeq == rhs.clockSeq &&
+         std::memcmp(lhs.node, rhs.node, sizeof(lhs.node)) == 0;
+}
+
+inline bool operator!=(const audio_uuid_t& lhs, const audio_uuid_t& rhs) {
+    return !(lhs == rhs);
+}
+
+/**
+ * @brief Helper function to write a single parameter (type P) and value (type
+ * V) to effect_param_t, with optional buffer size check.
+ *
+ * Type P and V must be trivially copyable type to ensure safe copying to the
+ * effect_param_t structure.
+ *
+ * Usage:
+ *   effect_param_t *param = (effect_param_t *)buf;
+ *   if (OK != android::effect::utils::writeToEffectParam(param, p, v)) {
+ *       // error handling
+ *   }
+ *
+ * @param param The pointer to effect_param_t buffer.
+ * @param p The parameter to write into effect_param_t, 32 bit padded.
+ * @param v The value to write into effect_param_t, start of value field inside
+ * the data field is always on a 32 bits boundary.
+ * @param bufSize OPTIONAL: The size of the buffer pointer to effect_param_t. If
+ * a valid bufSize provide, it will be used to verify if it's big enough to
+ * write both param and value.
+ * @return status_t OK on success, BAD_VALUE on any failure.
+ * Specifically, BAD_VALUE is returned if:
+ * - The `param` pointer is null.
+ * - The `bufSize` is provided and is insufficient to hold the data.
+ */
+template <typename P, typename V>
+  requires(std::is_trivially_copyable_v<P> && std::is_trivially_copyable_v<V>)
+status_t writeToEffectParam(effect_param_t* param, const P p, const V v,
+                            size_t bufSize = 0) {
+  const size_t pSize = EffectParamWrapper::padding(sizeof(P)),
+               vSize = sizeof(V);
+  if (!param ||
+      (bufSize != 0 && bufSize < sizeof(effect_param_t) + pSize + vSize)) {
+    return BAD_VALUE;
+  }
+
+  param->psize = pSize;
+  param->vsize = vSize;
+  EffectParamWriter writer(*param);
+
+  status_t ret = writer.writeToParameter(&p);
+  return ret == OK ? writer.writeToValue(&v) : ret;
+}
+
+/**
+ * @brief Helper function to read a single parameter (type P) and value (type V)
+ * from effect_param_t.
+ *
+ * Type P and V must be trivially copyable type to ensure safe copying from the
+ * effect_param_t structure.
+ *
+ * Usage:
+ *   effect_param_t *param = (effect_param_t *)buf;
+ *   if (OK != android::effect::utils::readFromEffectParam(param, &p, &v)) {
+ *       // error handling
+ *   }
+ *
+ * @param param The pointer to effect_param_t buffer.
+ * @param p The pointer to the return parameter read from effect_param_t.
+ * @param v The pointer to the return value read from effect_param_t.
+ * @return status_t OK on success, BAD_VALUE on any failure.
+ * Specifically, BAD_VALUE is returned if:
+ * - Any of `param`, `p`, or `v` pointers is null.
+ * - The `psize` or `vsize` is smaller than the size of `P` and `V`.
+ *
+ * **Important:** Even in case of an error (return value `BAD_VALUE`), the
+ * memory location pointed to by `p` might be updated.
+ */
+template <typename P, typename V>
+  requires(std::is_trivially_copyable_v<P> && std::is_trivially_copyable_v<V>)
+status_t readFromEffectParam(const effect_param_t* param, P* p, V* v) {
+  if (!param || !p || !v) return BAD_VALUE;
+
+  const size_t pSize = sizeof(P), vSize = sizeof(V);
+  EffectParamReader reader(*param);
+  if (!reader.validateParamValueSize(pSize, vSize)) return BAD_VALUE;
+
+  status_t ret = reader.readFromParameter(p);
+  return ret == OK ? reader.readFromValue(v) : ret;
+}
 
 }  // namespace utils
 }  // namespace effect

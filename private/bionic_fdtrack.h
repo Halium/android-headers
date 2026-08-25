@@ -28,8 +28,9 @@
 
 #pragma once
 
-#include <stdatomic.h>
 #include <sys/cdefs.h>
+
+#include <stdatomic.h>
 
 #include "platform/bionic/fdtrack.h"
 

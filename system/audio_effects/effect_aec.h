@@ -34,7 +34,7 @@ typedef enum
     AEC_PARAM_ECHO_DELAY,           // echo delay in microseconds
     AEC_PARAM_PROPERTIES,
 #ifndef WEBRTC_LEGACY
-    AEC_PARAM_MOBILE_MODE,
+    AEC_PARAM_MOBILE_MODE,          // deprecated
 #endif
 } t_aec_params;
 

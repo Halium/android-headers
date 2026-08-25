@@ -25,14 +25,15 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#ifndef _BIONIC_FUTEX_H
-#define _BIONIC_FUTEX_H
+
+#pragma once
+
+#include <sys/cdefs.h>
 
 #include <errno.h>
 #include <linux/futex.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <sys/cdefs.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
@@ -76,5 +77,3 @@ static inline int __futex_pi_unlock(volatile void* ftx, bool shared) {
 
 __LIBC_HIDDEN__ int __futex_pi_lock_ex(volatile void* ftx, bool shared, bool use_realtime_clock,
                                        const timespec* abs_timeout);
-
-#endif /* _BIONIC_FUTEX_H */

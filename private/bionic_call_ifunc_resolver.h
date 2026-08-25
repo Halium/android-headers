@@ -28,7 +28,8 @@
 
 #pragma once
 
-#include <link.h>
 #include <sys/cdefs.h>
+
+#include <link.h>
 
 __LIBC_HIDDEN__ ElfW(Addr) __bionic_call_ifunc_resolver(ElfW(Addr) resolver_addr);

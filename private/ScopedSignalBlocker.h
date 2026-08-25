@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <sys/cdefs.h>
+
 #include <signal.h>
 
 #include "platform/bionic/macros.h"

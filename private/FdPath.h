@@ -16,6 +16,10 @@
 
 #pragma once
 
+#include <sys/cdefs.h>
+
+#include <stdio.h>
+
 class FdPath {
  public:
   explicit FdPath(int fd) {

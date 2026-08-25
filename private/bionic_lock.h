@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include <sys/cdefs.h>
+
 #include <stdatomic.h>
 #include "private/bionic_futex.h"
 #include "platform/bionic/macros.h"
@@ -46,7 +48,7 @@ class Lock {
 
  public:
   void init(bool process_shared) {
-    atomic_init(&state, Unlocked);
+    atomic_store_explicit(&state, Unlocked, memory_order_relaxed);
     this->process_shared = process_shared;
   }
 

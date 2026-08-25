@@ -26,8 +26,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __BIONIC_PRIVATE_BIONIC_DEFS_H_
-#define __BIONIC_PRIVATE_BIONIC_DEFS_H_
+#pragma once
+
+#include <sys/cdefs.h>
 
 /*
  * This label is used to mark libc/libdl symbols that may need to be replaced
@@ -43,5 +44,3 @@
 #define __BIONIC_WEAK_VARIABLE_FOR_NATIVE_BRIDGE
 #define __BIONIC_WEAK_FOR_NATIVE_BRIDGE_INLINE static inline
 #endif
-
-#endif /* __BIONIC_PRIVATE_BIONIC_DEFS_H_ */

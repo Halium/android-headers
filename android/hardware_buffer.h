@@ -175,6 +175,14 @@ enum AHardwareBuffer_Format {
     AHARDWAREBUFFER_FORMAT_YCbCr_P010               = 0x36,
 
     /**
+     * YUV P210 format.
+     * Must have an even width and height. Can be accessed in OpenGL
+     * shaders through an external sampler. Does not support mip-maps
+     * cube-maps or multi-layered textures.
+     */
+    AHARDWAREBUFFER_FORMAT_YCbCr_P210               = 0x3c,
+
+    /**
      * Corresponding formats:
      *   Vulkan: VK_FORMAT_R8_UNORM
      *   OpenGL ES: GR_GL_R8
@@ -201,6 +209,63 @@ enum AHardwareBuffer_Format {
      *   OpenGL ES: N/A
      */
     AHARDWAREBUFFER_FORMAT_R10G10B10A10_UNORM       = 0x3b,
+
+    /**
+     * Corresponding formats:
+     *   Vulkan: VK_FORMAT_R12X4_UINT
+     *   OpenGL ES: N/A
+     */
+    AHARDWAREBUFFER_FORMAT_R12_UINT       	    = 0x3d,
+
+    /**
+     * Corresponding formats:
+     *   Vulkan: VK_FORMAT_R14X2_UINT
+     *   OpenGL ES: N/A
+     */
+    AHARDWAREBUFFER_FORMAT_R14_UINT               = 0x3e,
+
+    /**
+     * Corresponding formats:
+     *   Vulkan: VK_FORMAT_R12X4G12X4_UINT
+     *   OpenGL ES: N/A
+     */
+    AHARDWAREBUFFER_FORMAT_R12G12_UINT          = 0x3f,
+
+    /**
+     * Corresponding formats:
+     *   Vulkan: VK_FORMAT_R14X2G14X2_UINT
+     *   OpenGL ES: N/A
+     */
+    AHARDWAREBUFFER_FORMAT_R14G14_UINT          = 0x40,
+
+    /**
+     * Corresponding formats:
+     *   Vulkan: VK_FORMAT_R12X4G12X4B12X4A12X4_UINT
+     *   OpenGL ES: N/A
+     */
+    AHARDWAREBUFFER_FORMAT_R12G12B12A12_UINT= 0x41,
+
+    /**
+     * Corresponding formats:
+     *   Vulkan: VK_FORMAT_R14X2G14X2B14X2A14X2_UINT
+     *   OpenGL ES: N/A
+     */
+    AHARDWAREBUFFER_FORMAT_R14G14B14A14_UINT= 0x42,
+
+    /**
+     * Corresponding formats:
+     *   Vulkan: VK_FORMAT_A2R10G10B10_UNORM_PACK32
+     *   OpenGL ES: N/A
+     */
+    AHARDWAREBUFFER_FORMAT_B10G10R10A2_UNORM        = 0x43,
+
+    /**
+     * Corresponding formats:
+     *   Vulkan: VK_FORMAT_A2R10G10B10_UNORM_PACK32
+     *   OpenGL ES: N/A
+     */
+    AHARDWAREBUFFER_FORMAT_B10G10R10X2_UNORM        = 0x44,
+
 };
 
 /**
@@ -326,7 +391,7 @@ enum AHardwareBuffer_UsageFlags {
      * COMPOSER_OVERLAY, the system will try to prioritize the buffer receiving
      * an overlay plane & avoid caching it in intermediate composition buffers.
      */
-    AHARDWAREBUFFER_USAGE_FRONT_BUFFER = 1UL << 32,
+    AHARDWAREBUFFER_USAGE_FRONT_BUFFER = 1ULL << 32,
 
     AHARDWAREBUFFER_USAGE_VENDOR_0  = 1ULL << 28,
     AHARDWAREBUFFER_USAGE_VENDOR_1  = 1ULL << 29,

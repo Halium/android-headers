@@ -84,10 +84,11 @@ typedef enum {
     AUDIO_MODE_IN_CALL = HAL_AUDIO_MODE_IN_CALL,
     AUDIO_MODE_IN_COMMUNICATION = HAL_AUDIO_MODE_IN_COMMUNICATION,
     AUDIO_MODE_CALL_SCREEN = HAL_AUDIO_MODE_CALL_SCREEN,
+    AUDIO_MODE_ASSISTANT_CONVERSATION = 7,
 #ifndef AUDIO_NO_SYSTEM_DECLARATIONS
     AUDIO_MODE_CALL_REDIRECT = 5,
     AUDIO_MODE_COMMUNICATION_REDIRECT = 6,
-    AUDIO_MODE_MAX            = AUDIO_MODE_COMMUNICATION_REDIRECT,
+    AUDIO_MODE_MAX            = AUDIO_MODE_ASSISTANT_CONVERSATION,
     AUDIO_MODE_CNT            = AUDIO_MODE_MAX + 1,
 #endif // AUDIO_NO_SYSTEM_DECLARATIONS
 } audio_mode_t;
@@ -127,6 +128,8 @@ typedef struct {
 } __attribute__((packed)) audio_attributes_t; // sent through Binder;
 /** The separator for tags. */
 static const char AUDIO_ATTRIBUTES_TAGS_SEPARATOR = ';';
+/** Tag value for GMAP bidirectional mode indication */
+static const char* AUDIO_ATTRIBUTES_TAG_GMAP_BIDIRECTIONAL = "VX_AOSP_bidirectional";
 
 // Keep sync with android/media/AudioProductStrategy.java
 static const audio_flags_mask_t AUDIO_FLAGS_AFFECT_STRATEGY_SELECTION =
@@ -367,7 +370,7 @@ static inline CONSTEXPR bool audio_channel_mask_contains_stereo(audio_channel_ma
  * AUDIO_CHANNEL_OUT_7POINT1POINT4
  * AUDIO_CHANNEL_OUT_9POINT1POINT4
  * AUDIO_CHANNEL_OUT_9POINT1POINT6
- * AUDIO_CHANNEL_OUT_13POINT_360RA
+ * AUDIO_CHANNEL_OUT_13POINT0
  * AUDIO_CHANNEL_OUT_22POINT2
  */
 static inline CONSTEXPR bool audio_is_channel_mask_spatialized(audio_channel_mask_t channelMask) {
@@ -631,6 +634,9 @@ struct audio_port_config_device_ext {
     audio_module_handle_t hw_module;                /* module the device is attached to */
     audio_devices_t       type;                     /* device type (e.g AUDIO_DEVICE_OUT_SPEAKER) */
     char                  address[AUDIO_DEVICE_MAX_ADDRESS_LEN]; /* device address. "" if N/A */
+#ifndef SKIP_SPEAKER_LAYOUT_CHANNEL_MASK_FIELD
+    audio_channel_mask_t  speaker_layout_channel_mask; /* represents physical speaker layout. */
+#endif
 };
 
 /* extension for audio port configuration structure when the audio port is a
@@ -956,6 +962,10 @@ static inline bool audio_port_configs_are_equal(
     case AUDIO_PORT_TYPE_DEVICE:
         if (lhs->ext.device.hw_module != rhs->ext.device.hw_module ||
                 lhs->ext.device.type != rhs->ext.device.type ||
+#ifndef SKIP_SPEAKER_LAYOUT_CHANNEL_MASK_FIELD
+                lhs->ext.device.speaker_layout_channel_mask !=
+                        rhs->ext.device.speaker_layout_channel_mask ||
+#endif
                 strncmp(lhs->ext.device.address, rhs->ext.device.address,
                         AUDIO_DEVICE_MAX_ADDRESS_LEN) != 0) {
             return false;
@@ -1900,7 +1910,16 @@ static inline bool audio_is_valid_format(audio_format_t format)
     case AUDIO_FORMAT_SBC:
     case AUDIO_FORMAT_APTX:
     case AUDIO_FORMAT_APTX_HD:
+        return true;
     case AUDIO_FORMAT_AC4:
+        switch (format) {
+        case AUDIO_FORMAT_AC4:
+        case AUDIO_FORMAT_AC4_L4:
+            return true;
+        default:
+            return false;
+        }
+        /* not reached */
     case AUDIO_FORMAT_LDAC:
         return true;
     case AUDIO_FORMAT_MAT:
@@ -1950,6 +1969,25 @@ static inline bool audio_is_valid_format(audio_format_t format)
     case AUDIO_FORMAT_DTS_HD_MA:
     case AUDIO_FORMAT_DTS_UHD_P2:
         return true;
+    case AUDIO_FORMAT_IAMF:
+        switch (format) {
+        case AUDIO_FORMAT_IAMF_SIMPLE_OPUS:
+        case AUDIO_FORMAT_IAMF_SIMPLE_AAC:
+        case AUDIO_FORMAT_IAMF_SIMPLE_PCM:
+        case AUDIO_FORMAT_IAMF_SIMPLE_FLAC:
+        case AUDIO_FORMAT_IAMF_BASE_OPUS:
+        case AUDIO_FORMAT_IAMF_BASE_AAC:
+        case AUDIO_FORMAT_IAMF_BASE_PCM:
+        case AUDIO_FORMAT_IAMF_BASE_FLAC:
+        case AUDIO_FORMAT_IAMF_BASE_ENHANCED_OPUS:
+        case AUDIO_FORMAT_IAMF_BASE_ENHANCED_AAC:
+        case AUDIO_FORMAT_IAMF_BASE_ENHANCED_PCM:
+        case AUDIO_FORMAT_IAMF_BASE_ENHANCED_FLAC:
+                return true;
+        default:
+                return false;
+        }
+        /* not reached */
     default:
         return false;
     }
@@ -1960,6 +1998,7 @@ static inline bool audio_is_iec61937_compatible(audio_format_t format)
     switch (format) {
     case AUDIO_FORMAT_AC3:         // IEC 61937-3:2017
     case AUDIO_FORMAT_AC4:         // IEC 61937-14:2017
+    case AUDIO_FORMAT_AC4_L4:      // IEC 61937-14:2017
     case AUDIO_FORMAT_E_AC3:       // IEC 61937-3:2017
     case AUDIO_FORMAT_E_AC3_JOC:   // IEC 61937-3:2017
     case AUDIO_FORMAT_MAT:         // IEC 61937-9:2017
@@ -2313,6 +2352,13 @@ inline const char* audio_channel_mask_to_string(audio_channel_mask_t channel_mas
     }
 }
 
+inline CONSTEXPR bool audio_output_is_mixed_output_flags(audio_output_flags_t flags) {
+    return (flags & (AUDIO_OUTPUT_FLAG_DIRECT | AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD |
+            AUDIO_OUTPUT_FLAG_HW_AV_SYNC | AUDIO_OUTPUT_FLAG_IEC958_NONAUDIO |
+            AUDIO_OUTPUT_FLAG_DIRECT_PCM | AUDIO_OUTPUT_FLAG_GAPLESS_OFFLOAD |
+            AUDIO_OUTPUT_FLAG_BIT_PERFECT)) == 0;
+}
+
 __END_DECLS
 
 /**
@@ -2321,11 +2367,16 @@ __END_DECLS
  * a suffix specific to the device.
  * e.g: audio.primary.goldfish.so or audio.a2dp.default.so
  *
+ * "bluetooth" is a newer implementation, combining functionality
+ * from the legacy "a2dp" and "hearing_aid" modules,
+ * and adding support for BT LE devices.
+ *
  * The same module names are used in audio policy configuration files.
  */
 
 #define AUDIO_HARDWARE_MODULE_ID_PRIMARY "primary"
 #define AUDIO_HARDWARE_MODULE_ID_A2DP "a2dp"
+#define AUDIO_HARDWARE_MODULE_ID_BLUETOOTH "bluetooth"
 #define AUDIO_HARDWARE_MODULE_ID_USB "usb"
 #define AUDIO_HARDWARE_MODULE_ID_REMOTE_SUBMIX "r_submix"
 #define AUDIO_HARDWARE_MODULE_ID_CODEC_OFFLOAD "codec_offload"
@@ -2485,5 +2536,44 @@ __END_DECLS
 #define AUDIO_OFFLOAD_CODEC_DELAY_SAMPLES  "delay_samples"
 #define AUDIO_OFFLOAD_CODEC_PADDING_SAMPLES  "padding_samples"
 
+#define AUDIO_PARAMETER_CLIP_TRANSITION_SUPPORT "aosp.clipTransitionSupport"
+#define AUDIO_PARAMETER_CREATE_MMAP_BUFFER "aosp.createMmapBuffer"
+
+/**
+ * The maximum supported audio sample rate.
+ *
+ * note: The audio policy will use it as the max mixer sample rate for mixed
+ * output and inputs.
+ */
+#define SAMPLE_RATE_HZ_MAX 192000
+
+/**
+ * The minimum supported audio sample rate.
+ */
+#define SAMPLE_RATE_HZ_MIN 4000
+
+/**
+ * The maximum possible audio sample rate as defined in IEC61937.
+ * This definition is for a pre-check before asking the lower level service to
+ * open an AAudio stream.
+ *
+ * note: HDMI supports up to 32 channels at 1536000 Hz.
+ * note: This definition serve the purpose of parameter pre-check, real
+ * validation happens in the audio policy.
+ */
+#define SAMPLE_RATE_HZ_MAX_IEC610937 1600000
+
+/**
+ * The minimum audio sample rate supported by AAudio stream.
+ * This definition is for a pre-check before asking the lower level service to
+ * open an AAudio stream.
+ */
+#define SAMPLE_RATE_HZ_MIN_AAUDIO 8000
+
+/**
+ * Minimum/maximum channel count supported by AAudio stream.
+ */
+#define CHANNEL_COUNT_MIN_AAUDIO 1
+#define CHANNEL_COUNT_MAX_AAUDIO FCC_LIMIT
 
 #endif  // ANDROID_AUDIO_CORE_H

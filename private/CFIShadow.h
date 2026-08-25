@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-#ifndef CFI_SHADOW_H
-#define CFI_SHADOW_H
+#pragma once
+
+#include <sys/cdefs.h>
 
 #include <stdint.h>
 
@@ -40,7 +41,7 @@ constexpr size_t kLibraryAlignment = 1UL << kLibraryAlignmentBits;
 // below) are interpreted as follows.
 //
 // For an address P and corresponding shadow value V, the address of __cfi_check is calculated as
-//   align_up(P, 2**kShadowGranularity) - (V - 2) * (2 ** kCfiCheckGranularity)
+//   __builtin_align_up(P, 2**kShadowGranularity) - (V - 2) * (2 ** kCfiCheckGranularity)
 //
 // Special shadow values:
 //        0 = kInvalidShadow, this memory range has no valid CFI targets.
@@ -86,5 +87,3 @@ class CFIShadow {
                            // kRegularShadowMin.
   };
 };
-
-#endif  // CFI_SHADOW_H

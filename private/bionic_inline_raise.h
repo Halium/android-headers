@@ -29,13 +29,14 @@
 #pragma once
 
 #include <sys/cdefs.h>
+
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 // An inline version of pthread_sigqueue(pthread_self(), ...), to reduce the number of
 // uninteresting stack frames at the top of a crash.
-static inline __always_inline void inline_raise(int sig, void* value = nullptr) {
+static inline __always_inline int inline_raise(int sig, void* value = nullptr) {
   // Protect ourselves against stale cached PID/TID values by fetching them via syscall.
   // http://b/37769298
   pid_t pid = syscall(__NR_getpid);
@@ -46,6 +47,7 @@ static inline __always_inline void inline_raise(int sig, void* value = nullptr) 
   info.si_uid = getuid();
   info.si_value.sival_ptr = value;
 
+  long result;
 #if defined(__arm__)
   register long r0 __asm__("r0") = pid;
   register long r1 __asm__("r1") = tid;
@@ -53,6 +55,7 @@ static inline __always_inline void inline_raise(int sig, void* value = nullptr) 
   register long r3 __asm__("r3") = reinterpret_cast<long>(&info);
   register long r7 __asm__("r7") = __NR_rt_tgsigqueueinfo;
   __asm__("swi #0" : "=r"(r0) : "r"(r0), "r"(r1), "r"(r2), "r"(r3), "r"(r7) : "memory");
+  result = r0;
 #elif defined(__aarch64__)
   register long x0 __asm__("x0") = pid;
   register long x1 __asm__("x1") = tid;
@@ -60,6 +63,7 @@ static inline __always_inline void inline_raise(int sig, void* value = nullptr) 
   register long x3 __asm__("x3") = reinterpret_cast<long>(&info);
   register long x8 __asm__("x8") = __NR_rt_tgsigqueueinfo;
   __asm__("svc #0" : "=r"(x0) : "r"(x0), "r"(x1), "r"(x2), "r"(x3), "r"(x8) : "memory");
+  result = x0;
 #elif defined(__riscv)
   register long a0 __asm__("a0") = pid;
   register long a1 __asm__("a1") = tid;
@@ -67,6 +71,7 @@ static inline __always_inline void inline_raise(int sig, void* value = nullptr) 
   register long a3 __asm__("a3") = reinterpret_cast<long>(&info);
   register long a7 __asm__("a7") = __NR_rt_tgsigqueueinfo;
   __asm__("ecall" : "=r"(a0) : "r"(a0), "r"(a1), "r"(a2), "r"(a3), "r"(a7) : "memory");
+  result = a0;
 #elif defined(__x86_64__)
   register long rax __asm__("rax") = __NR_rt_tgsigqueueinfo;
   register long rdi __asm__("rdi") = pid;
@@ -77,8 +82,15 @@ static inline __always_inline void inline_raise(int sig, void* value = nullptr) 
           : "+r"(rax)
           : "r"(rdi), "r"(rsi), "r"(rdx), "r"(r10)
           : "memory", "cc", "r11", "rcx");
+  result = rax;
 #else
   // 32-bit x86 is a huge mess, so don't even bother...
-  syscall(__NR_rt_tgsigqueueinfo, pid, tid, sig, &info);
+  return syscall(__NR_rt_tgsigqueueinfo, pid, tid, sig, &info);
 #endif
+
+  if (result < 0) {
+    errno = -result;
+    return -1;
+  }
+  return 0;
 }

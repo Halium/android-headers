@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include <sys/cdefs.h>
+
 #include <unistd.h>
 
 #include "platform/bionic/macros.h"

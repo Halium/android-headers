@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,47 +30,17 @@
 
 #include <sys/cdefs.h>
 
-#include <signal.h>
-
-// Android's 32-bit ABI shipped with a sigset_t too small to include any
-// of the realtime signals, so we have both sigset_t and sigset64_t. Many
-// new system calls only accept a sigset64_t, so this helps paper over
-// the difference at zero cost to LP64 in most cases after the optimizer
-// removes the unnecessary temporary `ptr`.
-struct SigSetConverter {
- public:
-  SigSetConverter(const sigset_t* s) : SigSetConverter(const_cast<sigset_t*>(s)) {}
-
-  SigSetConverter(sigset_t* s) {
-#if defined(__LP64__)
-    // sigset_t == sigset64_t on LP64.
-    ptr = s;
+#if defined(__riscv)
+// TLS_DTV_OFFSET is a constant used in relocation fields, defined in RISC-V ELF Specification[1]
+// The front of the TCB contains a pointer to the DTV, and each pointer in DTV
+// points to 0x800 past the start of a TLS block to make full use of the range
+// of load/store instructions, refer to [2].
+//
+// [1]: RISC-V ELF Specification.
+// https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc#constants
+// [2]: Documentation of TLS data structures
+// https://github.com/riscv-non-isa/riscv-elf-psabi-doc/issues/53
+#define TLS_DTV_OFFSET 0x800
 #else
-    sigset64 = {};
-    if (s != nullptr) {
-      original_ptr = s;
-      sigset = *s;
-      ptr = &sigset64;
-    } else {
-      ptr = nullptr;
-    }
+#define TLS_DTV_OFFSET 0
 #endif
-  }
-
-  void copy_out() {
-#if defined(__LP64__)
-    // We used the original pointer directly, so no copy needed.
-#else
-    *original_ptr = sigset;
-#endif
-  }
-
-  sigset64_t* ptr;
-
- private:
-  [[maybe_unused]] sigset_t* original_ptr;
-  union {
-    sigset_t sigset;
-    sigset64_t sigset64;
-  };
-};

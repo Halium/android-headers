@@ -94,6 +94,23 @@ typedef enum
     // silence. The effect can configure spatialization settings accordingly when this parameter is
     // received.
     SPATIALIZER_PARAM_INPUT_CHANNEL_MASK,
+
+    // Query the list of spatialized channel masks supported by the spatializer.
+    // A spatialized channel mask is one where each virtual speaker position is rendered
+    // at its corresponding virtual position, and is not downmixed with any other.
+    // For instance if a spatializer is only capable of distinct positions for 5.1, it would only
+    // return 5.1:
+    //    - the list wouldn't include 4.0, because that mask is "contained" within 5.1
+    //    - the list wouldn't include 7.1 (and so on) because the side and rear channels would be
+    //      downmixed together.
+    // Another example is a spatializer that can only spatialize up to 9 channels (not counting .1)
+    // and that supports 5.1.4, and 7.1.2, the list should include both.
+    // Note that the masks must be a subset of those returned
+    // by SPATIALIZER_PARAM_SUPPORTED_CHANNEL_MASKS
+    // Encoding of the results:
+    //  first uint32_t is the number of channel masks followed by the corresponding
+    //  number of audio_channel_mask_t.
+    SPATIALIZER_PARAM_SPATIALIZED_CHANNEL_MASKS,
 } t_virtualizer_stage_params;
 
 // See SpatializationLevel.aidl

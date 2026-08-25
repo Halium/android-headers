@@ -28,32 +28,51 @@ __BEGIN_DECLS
  * frameworks/base/include/media/AudioSystem.h
  */
 
+#define AUDIO_ENUM_QUOTE(x) #x
+#define AUDIO_ENUM_STRINGIFY(x) AUDIO_ENUM_QUOTE(x)
+#define AUDIO_DEFINE_ENUM_SYMBOL(symbol) symbol,
+#define AUDIO_DEFINE_STRINGIFY_CASE(symbol) case symbol: return AUDIO_ENUM_STRINGIFY(symbol);
+
 /* device categories used for audio_policy->set_force_use()
  * These must match the values in AudioSystem.java
  */
+#define AUDIO_POLICY_FORCE_LIST_DEF(V)                       \
+    V(AUDIO_POLICY_FORCE_NONE)                               \
+    V(AUDIO_POLICY_FORCE_SPEAKER)                            \
+    V(AUDIO_POLICY_FORCE_HEADPHONES)                         \
+    V(AUDIO_POLICY_FORCE_BT_SCO)                             \
+    V(AUDIO_POLICY_FORCE_BT_A2DP)                            \
+    V(AUDIO_POLICY_FORCE_WIRED_ACCESSORY)                    \
+    V(AUDIO_POLICY_FORCE_BT_CAR_DOCK)                        \
+    V(AUDIO_POLICY_FORCE_BT_DESK_DOCK)                       \
+    V(AUDIO_POLICY_FORCE_ANALOG_DOCK)                        \
+    V(AUDIO_POLICY_FORCE_DIGITAL_DOCK)                       \
+    V(AUDIO_POLICY_FORCE_NO_BT_A2DP)                         \
+    V(AUDIO_POLICY_FORCE_SYSTEM_ENFORCED)                    \
+    V(AUDIO_POLICY_FORCE_HDMI_SYSTEM_AUDIO_ENFORCED)         \
+    V(AUDIO_POLICY_FORCE_ENCODED_SURROUND_NEVER)             \
+    V(AUDIO_POLICY_FORCE_ENCODED_SURROUND_ALWAYS)            \
+    V(AUDIO_POLICY_FORCE_ENCODED_SURROUND_MANUAL)            \
+    V(AUDIO_POLICY_FORCE_BT_BLE)
+
 typedef enum {
-    AUDIO_POLICY_FORCE_NONE,
-    AUDIO_POLICY_FORCE_SPEAKER,
-    AUDIO_POLICY_FORCE_HEADPHONES,
-    AUDIO_POLICY_FORCE_BT_SCO,
-    AUDIO_POLICY_FORCE_BT_A2DP,
-    AUDIO_POLICY_FORCE_WIRED_ACCESSORY,
-    AUDIO_POLICY_FORCE_BT_CAR_DOCK,
-    AUDIO_POLICY_FORCE_BT_DESK_DOCK,
-    AUDIO_POLICY_FORCE_ANALOG_DOCK,
-    AUDIO_POLICY_FORCE_DIGITAL_DOCK,
-    AUDIO_POLICY_FORCE_NO_BT_A2DP, /* A2DP sink is not preferred to speaker or wired HS */
-    AUDIO_POLICY_FORCE_SYSTEM_ENFORCED,
-    AUDIO_POLICY_FORCE_HDMI_SYSTEM_AUDIO_ENFORCED,
-    AUDIO_POLICY_FORCE_ENCODED_SURROUND_NEVER,
-    AUDIO_POLICY_FORCE_ENCODED_SURROUND_ALWAYS,
-    AUDIO_POLICY_FORCE_ENCODED_SURROUND_MANUAL,
+    AUDIO_POLICY_FORCE_LIST_DEF(AUDIO_DEFINE_ENUM_SYMBOL)
 
     AUDIO_POLICY_FORCE_CFG_CNT,
     AUDIO_POLICY_FORCE_CFG_MAX = AUDIO_POLICY_FORCE_CFG_CNT - 1,
 
     AUDIO_POLICY_FORCE_DEFAULT = AUDIO_POLICY_FORCE_NONE,
 } audio_policy_forced_cfg_t;
+
+inline const char* audio_policy_forced_cfg_to_string(audio_policy_forced_cfg_t t) {
+    switch (t) {
+    AUDIO_POLICY_FORCE_LIST_DEF(AUDIO_DEFINE_STRINGIFY_CASE)
+    default:
+        return "";
+    }
+}
+
+#undef AUDIO_POLICY_FORCE_LIST_DEF
 
 /* usages used for audio_policy->set_force_use()
  * These must match the values in AudioSystem.java
@@ -109,6 +128,11 @@ typedef enum {
     DEVICE_ROLE_PREFERRED = 1, /* devices are specified as preferred devices */
     DEVICE_ROLE_DISABLED = 2, /* devices cannot be used */
 } device_role_t;
+
+#undef AUDIO_DEFINE_STRINGIFY_CASE
+#undef AUDIO_DEFINE_ENUM_SYMBOL
+#undef AUDIO_ENUM_STRINGIFY
+#undef AUDIO_ENUM_QUOTE
 
 __END_DECLS
 

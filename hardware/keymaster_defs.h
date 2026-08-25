@@ -177,6 +177,8 @@ typedef enum {
     KM_TAG_STORAGE_KEY = KM_BOOL | 722,             /* storage encryption key */
     KM_TAG_ATTESTATION_ID_SECOND_IMEI = KM_BYTES | 723,   /* Used to provide the device's second
                                                              IMEI to be included in attestation */
+    KM_TAG_MODULE_HASH = KM_BYTES | 724,            /* Used to record the hash of apex module
+                                                       information to be included in attestation */
 
     /* Tags used only to provide data to or receive data from operations */
     KM_TAG_ASSOCIATED_DATA = KM_BYTES | 1000, /* Used to provide associated data for AEAD modes. */
@@ -504,6 +506,7 @@ typedef enum {
     KM_ERROR_ATTESTATION_APPLICATION_ID_MISSING = -65,
     KM_ERROR_CANNOT_ATTEST_IDS = -66,
     KM_ERROR_ROLLBACK_RESISTANCE_UNAVAILABLE = -67,
+    KM_ERROR_HARDWARE_TYPE_UNAVAILABLE = -68,
     KM_ERROR_NO_USER_CONFIRMATION = -71,
     KM_ERROR_DEVICE_LOCKED = -72,
     KM_ERROR_EARLY_BOOT_ENDED = -73,
@@ -516,6 +519,8 @@ typedef enum {
     KM_ERROR_MISSING_ISSUER_SUBJECT = -82,
     KM_ERROR_INVALID_ISSUER_SUBJECT = -83,
     KM_ERROR_BOOT_LEVEL_EXCEEDED = -84,
+    KM_ERROR_HARDWARE_NOT_YET_AVAILABLE = -85,
+    KM_ERROR_MODULE_HASH_ALREADY_SET = -86,
 
     KM_ERROR_UNIMPLEMENTED = -100,
     KM_ERROR_VERSION_MISMATCH = -101,

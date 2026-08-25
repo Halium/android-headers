@@ -28,4 +28,6 @@
 
 #pragma once
 
+#include <sys/cdefs.h>
+
 extern "C" void __linker_reserve_bionic_tls_in_static_tls();

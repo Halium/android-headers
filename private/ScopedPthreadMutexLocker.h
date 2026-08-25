@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <sys/cdefs.h>
+
 #include <pthread.h>
 
 #include "platform/bionic/macros.h"

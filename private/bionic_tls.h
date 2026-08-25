@@ -28,10 +28,11 @@
 
 #pragma once
 
+#include <sys/cdefs.h>
+
 #include <locale.h>
 #include <mntent.h>
 #include <stdio.h>
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #include <platform/bionic/tls.h>
@@ -106,15 +107,27 @@ class pthread_key_data_t {
   void* data;
 };
 
-// ~3 pages. This struct is allocated as static TLS memory (i.e. at a fixed
-// offset from the thread pointer).
+// Defines the memory layout for the TLS buffers used by basename() and
+// dirname() in libgen.h.
+//
+// This struct is separated out from bionic TLS to ensure that the libgen
+// buffers, when mapped, occupy their own set of memory pages distinct
+// from the primary bionic_tls structure. This helps improve memory usage
+// if libgen functions are not heavily used, especially on 16KB page size
+// systems.
+struct libgen_buffers {
+  char basename_buf[MAXPATHLEN];
+  char dirname_buf[MAXPATHLEN];
+};
+
+// This struct is allocated as static TLS memory (i.e. at a fixed offset
+// from the thread pointer).
 struct bionic_tls {
   pthread_key_data_t key_data[BIONIC_PTHREAD_KEY_COUNT];
 
   locale_t locale;
 
-  char basename_buf[MAXPATHLEN];
-  char dirname_buf[MAXPATHLEN];
+  libgen_buffers* libgen_buffers_ptr;
 
   mntent mntent_buf;
   char mntent_strings[BUFSIZ];
@@ -129,7 +142,7 @@ struct bionic_tls {
   passwd_state_t passwd;
 
   char fdtrack_disabled;
-  char bionic_systrace_disabled;
+  char bionic_systrace_enabled;
   char padding[2];
 
   // Initialize the main thread's final object using its bootstrap object.
